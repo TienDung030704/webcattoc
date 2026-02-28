@@ -27,7 +27,9 @@ function Login() {
           }}
         >
           {/* Title */}
-          <h1 className="mb-1 text-4xl font-bold text-white drop-shadow">Đăng Nhập</h1>
+          <h1 className="mb-1 text-4xl font-bold text-white drop-shadow">
+            Đăng Nhập
+          </h1>
           <p className="mb-8 text-sm text-white/60">
             Chào mừng đến với dịch vụ đặt lịch cắt tóc
           </p>
@@ -60,10 +62,17 @@ function Login() {
                 <input
                   type="email"
                   placeholder="Nhập email của bạn"
-                  className="w-full rounded-lg py-3 pr-4 pl-10 text-sm text-white outline-none transition placeholder:text-white/35"
-                  style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)" }}
-                  onFocus={(e) => { e.target.style.border = "1px solid rgba(255,255,255,0.45)"; }}
-                  onBlur={(e) => { e.target.style.border = "1px solid rgba(255,255,255,0.15)"; }}
+                  className="w-full rounded-lg py-3 pr-4 pl-10 text-sm text-white transition outline-none placeholder:text-white/35"
+                  style={{
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.border = "1px solid rgba(255,255,255,0.45)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.border = "1px solid rgba(255,255,255,0.15)";
+                  }}
                 />
               </div>
             </div>
@@ -94,10 +103,17 @@ function Login() {
                 <input
                   type="password"
                   placeholder="Nhập mật khẩu"
-                  className="w-full rounded-lg py-3 pr-4 pl-10 text-sm text-white outline-none transition placeholder:text-white/35"
-                  style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)" }}
-                  onFocus={(e) => { e.target.style.border = "1px solid rgba(255,255,255,0.45)"; }}
-                  onBlur={(e) => { e.target.style.border = "1px solid rgba(255,255,255,0.15)"; }}
+                  className="w-full rounded-lg py-3 pr-4 pl-10 text-sm text-white transition outline-none placeholder:text-white/35"
+                  style={{
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.border = "1px solid rgba(255,255,255,0.45)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.border = "1px solid rgba(255,255,255,0.15)";
+                  }}
                 />
               </div>
             </div>
@@ -116,9 +132,16 @@ function Login() {
             <button
               type="submit"
               className="w-full cursor-pointer rounded-lg py-3 text-sm font-bold text-white transition active:scale-[.98]"
-              style={{ background: "rgba(20,14,5,0.85)", border: "1px solid rgba(255,255,255,0.12)" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(40,28,10,0.95)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(20,14,5,0.85)"; }}
+              style={{
+                background: "rgba(20,14,5,0.85)",
+                border: "1px solid rgba(255,255,255,0.12)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(40,28,10,0.95)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(20,14,5,0.85)";
+              }}
             >
               Đăng Nhập
             </button>
@@ -126,15 +149,27 @@ function Login() {
 
           {/* Divider */}
           <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.15)" }} />
+            <div
+              className="h-px flex-1"
+              style={{ background: "rgba(255,255,255,0.15)" }}
+            />
             <span className="text-xs text-white/40">Hoặc đăng nhập với</span>
-            <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.15)" }} />
+            <div
+              className="h-px flex-1"
+              style={{ background: "rgba(255,255,255,0.15)" }}
+            />
           </div>
 
           {/* Social login */}
           <div className="flex justify-center gap-4">
             {/* Facebook */}
-            <button className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full transition hover:scale-110" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}>
+            <button
+              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full transition hover:scale-110"
+              style={{
+                background: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.2)",
+              }}
+            >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-5 w-5"
@@ -146,7 +181,13 @@ function Login() {
             </button>
 
             {/* Google */}
-            <button className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full transition hover:scale-110" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}>
+            <button
+              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full transition hover:scale-110"
+              style={{
+                background: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.2)",
+              }}
+            >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-5 w-5"
@@ -172,7 +213,13 @@ function Login() {
             </button>
 
             {/* Apple */}
-            <button className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full transition hover:scale-110" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}>
+            <button
+              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full transition hover:scale-110"
+              style={{
+                background: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.2)",
+              }}
+            >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-5 w-5"
@@ -201,7 +248,10 @@ function Login() {
       <a
         href="#"
         className="absolute right-6 bottom-6 z-20 flex h-10 w-10 items-center justify-center rounded-full transition hover:scale-110"
-        style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}
+        style={{
+          background: "rgba(255,255,255,0.12)",
+          border: "1px solid rgba(255,255,255,0.2)",
+        }}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -211,7 +261,11 @@ function Login() {
           stroke="currentColor"
           strokeWidth={2}
         >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M19 9l-7 7-7-7"
+          />
         </svg>
       </a>
     </div>
