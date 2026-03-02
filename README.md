@@ -1,1 +1,0 @@
-Mày hãy đọc toàn bộ cấu trúc dự án của tao để hiểu cấu trúc dự án sau đó mày 
