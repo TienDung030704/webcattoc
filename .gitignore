@@ -27,3 +27,8 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Claude local files
+CLAUDE.md
+.claude/
+docs/

@@ -27,7 +27,13 @@ function ForgotPassword() {
           }}
         >
           {/* Icon khoá */}
-          <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}>
+          <div
+            className="mb-5 flex h-14 w-14 items-center justify-center rounded-full"
+            style={{
+              background: "rgba(255,255,255,0.12)",
+              border: "1px solid rgba(255,255,255,0.2)",
+            }}
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-7 w-7 text-white"
@@ -80,10 +86,17 @@ function ForgotPassword() {
                 <input
                   type="email"
                   placeholder="Nhập email của bạn"
-                  className="w-full rounded-lg py-3 pr-4 pl-10 text-sm text-white outline-none transition placeholder:text-white/35"
-                  style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)" }}
-                  onFocus={(e) => { e.target.style.border = "1px solid rgba(255,255,255,0.45)"; }}
-                  onBlur={(e) => { e.target.style.border = "1px solid rgba(255,255,255,0.15)"; }}
+                  className="w-full rounded-lg py-3 pr-4 pl-10 text-sm text-white transition outline-none placeholder:text-white/35"
+                  style={{
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.border = "1px solid rgba(255,255,255,0.45)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.border = "1px solid rgba(255,255,255,0.15)";
+                  }}
                 />
               </div>
             </div>
@@ -92,9 +105,16 @@ function ForgotPassword() {
             <button
               type="submit"
               className="w-full cursor-pointer rounded-lg py-3 text-sm font-bold text-white transition active:scale-[.98]"
-              style={{ background: "rgba(20,14,5,0.85)", border: "1px solid rgba(255,255,255,0.12)" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(40,28,10,0.95)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(20,14,5,0.85)"; }}
+              style={{
+                background: "rgba(20,14,5,0.85)",
+                border: "1px solid rgba(255,255,255,0.12)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(40,28,10,0.95)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(20,14,5,0.85)";
+              }}
             >
               Gửi Link Đặt Lại
             </button>
@@ -102,16 +122,25 @@ function ForgotPassword() {
 
           {/* Divider */}
           <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.15)" }} />
+            <div
+              className="h-px flex-1"
+              style={{ background: "rgba(255,255,255,0.15)" }}
+            />
             <span className="text-xs text-white/40">hoặc</span>
-            <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.15)" }} />
+            <div
+              className="h-px flex-1"
+              style={{ background: "rgba(255,255,255,0.15)" }}
+            />
           </div>
 
           {/* Quay lại đăng nhập */}
           <a
             href="/auth/login"
             className="flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold text-white/70 transition hover:text-white active:scale-[.98]"
-            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.12)",
+            }}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -121,7 +150,11 @@ function ForgotPassword() {
               stroke="currentColor"
               strokeWidth={2}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
             </svg>
             Quay lại đăng nhập
           </a>
@@ -143,7 +176,10 @@ function ForgotPassword() {
       <a
         href="#"
         className="absolute right-6 bottom-6 z-20 flex h-10 w-10 items-center justify-center rounded-full transition hover:scale-110"
-        style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}
+        style={{
+          background: "rgba(255,255,255,0.12)",
+          border: "1px solid rgba(255,255,255,0.2)",
+        }}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -153,7 +189,11 @@ function ForgotPassword() {
           stroke="currentColor"
           strokeWidth={2}
         >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M19 9l-7 7-7-7"
+          />
         </svg>
       </a>
     </div>

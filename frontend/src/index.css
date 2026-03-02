@@ -1,1 +1,346 @@
 @import "tailwindcss";
+
+@keyframes hero-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hero-glow {
+  0%,
+  100% {
+    box-shadow: 0 12px 24px rgba(247, 155, 28, 0.28);
+  }
+  50% {
+    box-shadow: 0 18px 38px rgba(247, 155, 28, 0.48);
+  }
+}
+
+.hero-fade-up {
+  opacity: 0;
+  animation: hero-fade-up 0.9s ease-out forwards;
+}
+
+.hero-fade-up-delay-1 {
+  animation-delay: 0.12s;
+}
+
+.hero-fade-up-delay-2 {
+  animation-delay: 0.24s;
+}
+
+.hero-fade-up-delay-3 {
+  animation-delay: 0.36s;
+}
+
+.hero-fade-up-delay-4 {
+  animation-delay: 0.48s;
+}
+
+.hero-glow {
+  animation: hero-glow 2.8s ease-in-out infinite;
+}
+
+.hero-fade-up.hero-glow {
+  opacity: 0;
+  animation: hero-fade-up 0.9s ease-out forwards, hero-glow 2.8s ease-in-out infinite;
+}
+
+.hero-card {
+  opacity: 0;
+  animation: hero-fade-up 0.9s ease-out forwards;
+  transition: transform 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
+}
+
+.hero-card:hover {
+  transform: translateY(-6px);
+}
+
+.hero-card-delay-1 {
+  animation-delay: 0.55s;
+}
+
+.hero-card-delay-2 {
+  animation-delay: 0.7s;
+}
+
+.hero-card-delay-3 {
+  animation-delay: 0.85s;
+}
+
+@keyframes product-page-fade {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes product-sidebar-reveal {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes product-toolbar-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes product-card-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.product-page-fade {
+  animation: product-page-fade 0.7s ease-out both;
+}
+
+.product-sidebar-reveal {
+  opacity: 0;
+  animation: product-sidebar-reveal 0.7s ease-out 0.1s forwards;
+}
+
+.product-toolbar-reveal {
+  opacity: 0;
+  animation: product-toolbar-reveal 0.7s ease-out 0.16s forwards;
+}
+
+.product-card-reveal {
+  opacity: 0;
+  animation: product-card-reveal 0.72s ease-out forwards;
+}
+
+@keyframes service-page-fade {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes service-title-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes service-board-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.97);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes service-frame-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes service-bg-shimmer {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes service-hero-zoom {
+  from {
+    transform: scale(1.035);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.service-page-fade {
+  animation: service-page-fade 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.service-title-reveal {
+  opacity: 0;
+  animation: service-title-reveal 0.95s cubic-bezier(0.22, 1, 0.36, 1) 0.12s forwards;
+}
+
+.service-board-reveal {
+  opacity: 0;
+  animation: service-board-reveal 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transition: transform 0.45s ease, filter 0.45s ease;
+  will-change: transform, filter;
+}
+
+.service-board-reveal:hover {
+  transform: translateY(-6px) scale(1.008);
+}
+
+.service-frame-float {
+  animation: service-frame-float 8s ease-in-out infinite;
+}
+
+.service-bg-shimmer {
+  background-size: 200% 200%;
+  animation: service-bg-shimmer 16s ease-in-out infinite alternate;
+}
+
+.service-hero-zoom {
+  animation: service-hero-zoom 2.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Fade effect cho slider ảnh dịch vụ */
+@keyframes service-gallery-fade {
+  from {
+    opacity: 0.35;
+    transform: scale(1.015);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes intro-section-fade {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes intro-title-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+    letter-spacing: 0.04em;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    letter-spacing: 0;
+    filter: blur(0);
+  }
+}
+
+@keyframes intro-text-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes intro-year-reveal {
+  from {
+    opacity: 0;
+    transform: translateX(20px) scale(0.98);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.service-gallery-fade {
+  animation: service-gallery-fade 0.45s ease;
+}
+
+.intro-section-fade {
+  animation: intro-section-fade 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.intro-title-reveal {
+  opacity: 0;
+  animation: intro-title-reveal 0.95s cubic-bezier(0.22, 1, 0.36, 1) 0.12s forwards;
+}
+
+.intro-text-reveal {
+  opacity: 0;
+  animation: intro-text-reveal 0.9s ease-out 0.28s forwards;
+}
+
+.intro-year-reveal {
+  opacity: 0;
+  animation: intro-year-reveal 0.95s cubic-bezier(0.22, 1, 0.36, 1) 0.36s forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-fade-up,
+  .hero-glow,
+  .hero-card,
+  .product-page-fade,
+  .product-sidebar-reveal,
+  .product-toolbar-reveal,
+  .product-card-reveal,
+  .service-page-fade,
+  .service-title-reveal,
+  .service-board-reveal,
+  .service-frame-float,
+  .service-bg-shimmer,
+  .service-hero-zoom,
+  .service-gallery-fade,
+  .intro-section-fade,
+  .intro-title-reveal,
+  .intro-text-reveal,
+  .intro-year-reveal {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
