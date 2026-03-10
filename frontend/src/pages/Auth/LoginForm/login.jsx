@@ -1,7 +1,73 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { useNavigate } from "react-router-dom";
+
+import { loginSchema } from "@/utils/validate";
+import { useAutoLogin } from "@/features/Auth/hook";
+import { toast } from "sonner";
 
 function Login() {
   const [showPassword, setShowPassword] = useState(false);
+  const loginApi = useAutoLogin();
+  const navigate = useNavigate();
+
+  const {
+    register: login,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+    resolver: yupResolver(loginSchema),
+  });
+
+  const onSubmit = async (data) => {
+    try {
+      const result = await loginApi(data);
+
+      if (!result) return;
+
+      const accessToken = result.accessToken || result.access_token;
+      const refreshToken = result.refreshToken || result.refresh_token;
+
+      if (accessToken) {
+        localStorage.setItem("access_token", accessToken);
+      }
+
+      if (refreshToken) {
+        localStorage.setItem("refresh_token", refreshToken);
+      }
+
+      localStorage.setItem("user_data", JSON.stringify(result));
+
+      setTimeout(() => {
+        toast.success("Đăng nhập thành công!", {
+          duration: 3000,
+          position: "top-right",
+          style: {
+            background: "#16a34a",
+            color: "#ffffff",
+            border: "1px solid #15803d",
+          },
+        });
+      });
+      navigate("/");
+    } catch (error) {
+      console.error("Login failed:", error);
+      const errorMessage = error?.response?.data?.error || "Đăng nhập thất bại";
+      toast.error(errorMessage, {
+        position: "top-right",
+        style: {
+          background: "#dc2626",
+          color: "#ffffff",
+          border: "1px solid #b91c1c",
+        },
+      });
+    }
+  };
 
   return (
     <div
@@ -39,7 +105,11 @@ function Login() {
           </p>
 
           {/* Form */}
-          <form className="space-y-5">
+          <form
+            className="space-y-5"
+            noValidate
+            onSubmit={handleSubmit(onSubmit)}
+          >
             {/* Email */}
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-white/90">
@@ -66,19 +136,24 @@ function Login() {
                 <input
                   type="email"
                   placeholder="Nhập email của bạn"
-                  className="w-full rounded-lg py-3 pr-4 pl-10 text-sm text-white transition outline-none placeholder:text-white/35"
+                  autoComplete="email"
+                  aria-invalid={Boolean(errors.email)}
+                  {...login("email")}
+                  className={`w-full rounded-lg border py-3 pr-4 pl-10 text-sm text-white transition outline-none placeholder:text-white/35 ${
+                    errors.email
+                      ? "border-[#ff7b7b]"
+                      : "border-white/15 focus:border-white/45"
+                  }`}
                   style={{
                     background: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.border = "1px solid rgba(255,255,255,0.45)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.border = "1px solid rgba(255,255,255,0.15)";
                   }}
                 />
               </div>
+              {errors.email ? (
+                <p className="mt-2 text-xs text-[#ff9b9b]">
+                  {errors.email.message}
+                </p>
+              ) : null}
             </div>
 
             {/* Mật khẩu */}
@@ -107,16 +182,16 @@ function Login() {
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Nhập mật khẩu"
-                  className="w-full rounded-lg py-3 pr-10 pl-10 text-sm text-white transition outline-none placeholder:text-white/35"
+                  autoComplete="current-password"
+                  aria-invalid={Boolean(errors.password)}
+                  {...login("password")}
+                  className={`w-full rounded-lg border py-3 pr-10 pl-10 text-sm text-white transition outline-none placeholder:text-white/35 ${
+                    errors.password
+                      ? "border-[#ff7b7b]"
+                      : "border-white/15 focus:border-white/45"
+                  }`}
                   style={{
                     background: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.border = "1px solid rgba(255,255,255,0.45)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.border = "1px solid rgba(255,255,255,0.15)";
                   }}
                 />
                 <button
@@ -162,6 +237,11 @@ function Login() {
                   )}
                 </button>
               </div>
+              {errors.password ? (
+                <p className="mt-2 text-xs text-[#ff9b9b]">
+                  {errors.password.message}
+                </p>
+              ) : null}
             </div>
 
             {/* Quên mật khẩu */}

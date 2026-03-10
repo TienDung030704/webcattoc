@@ -6,6 +6,7 @@ const express = require("express");
 const cors = require("cors");
 
 const rootRouter = require("@/routes");
+const responseHandle = require("@/middleware/responseHandle");
 const notFoundHandle = require("@/middleware/notFoundHandle");
 
 const app = express();
@@ -14,6 +15,8 @@ const port = 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static("uploads"));
+app.use(responseHandle);
 
 // Router
 app.use("/api", rootRouter);

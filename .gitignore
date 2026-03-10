@@ -19,16 +19,47 @@ frontend/dist/
 logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Cache
+.cache/
+.eslintcache
+.parcel-cache/
+.temp/
+tmp/
 
 # OS files
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
+*~
 
 # IDE
 .vscode/
 .idea/
+*.sublime-project
+*.sublime-workspace
 
 # Claude local files
 CLAUDE.md
 .claude/
 docs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Misc
+.vercel/
+.turbo/
+.pnpm-store/

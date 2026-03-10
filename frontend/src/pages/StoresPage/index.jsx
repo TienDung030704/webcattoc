@@ -2,7 +2,9 @@ import { Link } from "react-router-dom";
 
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
+import HeaderAuthArea from "@/components/Header/AuthIsStatus/AuthStatus";
 
+// Danh sách chi nhánh theo từng khu vực
 const storeAreas = [
   {
     city: "TP. HỒ CHÍ MINH",
@@ -68,6 +70,7 @@ const storeAreas = [
 function StoresPage() {
   return (
     <div className="min-h-screen bg-[#050505] text-white">
+      {/* Header điều hướng chính của website */}
       <Header>
         <header className="sticky top-0 z-50 border-b border-white/10 bg-[#120d08]/90 backdrop-blur-md">
           <div className="mx-auto grid h-16 w-full max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-4 px-6 lg:px-10">
@@ -82,7 +85,7 @@ function StoresPage() {
               </span>
             </Link>
 
-            <nav className="mx-auto hidden w-full max-w-[900px] items-center justify-center gap-2 text-sm text-white/70 md:flex">
+            <nav className="mx-auto hidden min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden text-sm text-white/70 md:flex">
               <Link
                 to="/"
                 className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white"
@@ -121,25 +124,13 @@ function StoresPage() {
               </Link>
             </nav>
 
-            <div className="flex items-center gap-3">
-              <Link
-                to="/auth/login"
-                className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-              >
-                Đăng nhập
-              </Link>
-              <Link
-                to="/auth/register"
-                className="rounded-lg bg-[#c8a96e] px-4 py-2 text-sm font-bold text-[#1a130b] transition hover:bg-[#d9bb82]"
-              >
-                Đăng ký
-              </Link>
-            </div>
+            <HeaderAuthArea />
           </div>
         </header>
       </Header>
 
       <main className="service-page-fade">
+        {/* Hero banner trang hệ thống cửa hàng */}
         <section className="relative h-[280px] overflow-hidden md:h-[340px] lg:h-[390px]">
           <img
             src="/bg-cuthair-2.png"
@@ -159,6 +150,7 @@ function StoresPage() {
           </div>
         </section>
 
+        {/* Khu vực hiển thị danh sách chi nhánh theo từng thành phố */}
         <section
           className="service-bg-shimmer relative overflow-hidden px-4 pt-12 pb-20 md:px-8 md:pt-16 md:pb-24"
           style={{
@@ -173,6 +165,7 @@ function StoresPage() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05),transparent_55%)]" />
           </div>
 
+          {/* Mỗi block là một khu vực như TP.HCM hoặc Hà Nội */}
           <div className="relative mx-auto max-w-[1560px] space-y-16">
             {storeAreas.map((area, areaIndex) => (
               <section key={area.city}>
@@ -186,6 +179,7 @@ function StoresPage() {
                   <div className="mx-auto mt-4 h-1 w-24 rounded-full bg-[#c8a96e]" />
                 </div>
 
+                {/* Grid các khung chi nhánh trong từng khu vực */}
                 <div className="grid gap-7 md:grid-cols-2 xl:grid-cols-3">
                   {area.branches.map((branch, branchIndex) => (
                     <article
@@ -221,11 +215,8 @@ function StoresPage() {
                             className="mt-5 h-52 w-full rounded-2xl border border-white/15 bg-black/20 object-contain object-center p-2 md:h-60"
                           />
 
-                          <div className="mt-4 w-[84%] max-w-[280px] rounded-[16px] bg-black/20 px-2.5 py-2.5 md:mt-5">
-                            <p className="text-[9px] font-black tracking-[0.12em] text-[#f7c86d] uppercase">
-                              Địa chỉ
-                            </p>
-                            <p className="mt-1 text-[11px] leading-4.5 break-words text-white/90 md:text-[12px]">
+                          <div className="mt-3 w-[86%] max-w-[300px] rounded-[14px] bg-gradient-to-b from-[#1a120d]/88 to-[#110b07]/82 px-3 py-2.5 shadow-[0_10px_24px_rgba(0,0,0,0.28)] md:mt-4">
+                            <p className="text-[11px] leading-[1.5] font-medium tracking-[0.01em] break-words text-[#f7efe0] drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)] md:text-[12px]">
                               {branch.address}
                             </p>
                           </div>

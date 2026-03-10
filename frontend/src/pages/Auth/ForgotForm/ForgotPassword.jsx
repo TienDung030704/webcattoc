@@ -1,4 +1,22 @@
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+
+import { forgotSchema } from "@/utils/validate";
+
 function ForgotPassword() {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    defaultValues: {
+      email: "",
+    },
+    resolver: yupResolver(forgotSchema),
+  });
+
+  const onSubmit = () => {};
+
   return (
     <div
       className="relative flex h-screen w-full overflow-hidden"
@@ -59,7 +77,7 @@ function ForgotPassword() {
           </p>
 
           {/* Form */}
-          <form className="space-y-5">
+          <form className="space-y-5" noValidate onSubmit={handleSubmit(onSubmit)}>
             {/* Email */}
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-white/90">
@@ -86,19 +104,22 @@ function ForgotPassword() {
                 <input
                   type="email"
                   placeholder="Nhập email của bạn"
-                  className="w-full rounded-lg py-3 pr-4 pl-10 text-sm text-white transition outline-none placeholder:text-white/35"
+                  autoComplete="email"
+                  aria-invalid={Boolean(errors.email)}
+                  {...register("email")}
+                  className={`w-full rounded-lg border py-3 pr-4 pl-10 text-sm text-white transition outline-none placeholder:text-white/35 ${
+                    errors.email
+                      ? "border-[#ff7b7b]"
+                      : "border-white/15 focus:border-white/45"
+                  }`}
                   style={{
                     background: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.border = "1px solid rgba(255,255,255,0.45)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.border = "1px solid rgba(255,255,255,0.15)";
                   }}
                 />
               </div>
+              {errors.email ? (
+                <p className="mt-2 text-xs text-[#ff9b9b]">{errors.email.message}</p>
+              ) : null}
             </div>
 
             {/* Nút gửi */}
