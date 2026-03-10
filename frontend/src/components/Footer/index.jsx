@@ -29,8 +29,8 @@ function Footer() {
             <Link to="/service" className="transition hover:text-white">
               Dịch vụ
             </Link>
-            <Link to="/recomend" className="transition hover:text-white">
-              Giới thiệu
+            <Link to="/booking" className="transition hover:text-white">
+              Đặt lịch
             </Link>
           </div>
         </div>

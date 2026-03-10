@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
+import HeaderAuthArea from "@/components/Header/AuthIsStatus/AuthStatus";
 
 // Dữ liệu bảng giá dịch vụ theo khu vực
 const priceBoards = [
@@ -69,6 +70,7 @@ function ServicePage() {
   };
   return (
     <div className="min-h-screen bg-[#050505] text-white">
+      {/* Header điều hướng chính của website */}
       <Header>
         <header className="sticky top-0 z-50 border-b border-white/10 bg-[#120d08]/90 backdrop-blur-md">
           <div className="mx-auto grid h-16 w-full max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-4 px-6 lg:px-10">
@@ -83,7 +85,7 @@ function ServicePage() {
               </span>
             </Link>
 
-            <nav className="mx-auto hidden w-full max-w-[900px] items-center justify-center gap-2 text-sm text-white/70 md:flex">
+            <nav className="mx-auto hidden min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden text-sm text-white/70 md:flex">
               <Link
                 to="/"
                 className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white"
@@ -122,24 +124,12 @@ function ServicePage() {
               </Link>
             </nav>
 
-            <div className="flex items-center gap-3">
-              <Link
-                to="/auth/login"
-                className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-              >
-                Đăng nhập
-              </Link>
-              <Link
-                to="/auth/register"
-                className="rounded-lg bg-[#c8a96e] px-4 py-2 text-sm font-bold text-[#1a130b] transition hover:bg-[#d9bb82]"
-              >
-                Đăng ký
-              </Link>
-            </div>
+            <HeaderAuthArea />
           </div>
         </header>
       </Header>
       <main className="service-page-fade">
+        {/* Hero banner đầu trang dịch vụ */}
         <section className="relative h-[330px] overflow-hidden md:h-[380px] lg:h-[430px]">
           <img
             src="/bg-cuthair.png"
@@ -149,6 +139,7 @@ function ServicePage() {
           <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.12),rgba(0,0,0,0.28),rgba(0,0,0,0.62))]" />
         </section>
 
+        {/* Khu vực nội dung chính: bảng giá và slider ảnh dịch vụ */}
         <section
           className="service-bg-shimmer relative overflow-hidden px-4 pt-10 pb-20 md:px-8 md:pt-14 md:pb-24"
           style={{
@@ -317,6 +308,7 @@ function ServicePage() {
         </section>
       </main>
 
+      {/* Footer dùng chung toàn site */}
       <Footer />
     </div>
   );

@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
-const authConfig = require("../config/authConfig");
-const authService = require("../service/auth.service");
+const authConfig = require("@/config/authConfig");
+const authService = require("@/services/auth.service");
 
 async function authRequired(req, res, next) {
   try {
@@ -19,7 +19,7 @@ async function authRequired(req, res, next) {
       return res.unauthorized();
     }
 
-    const userId = payload.sub;
+    const userId = BigInt(payload.sub);
     const user = await authService.getUserById(userId);
     if (!user) {
       return res.unauthorized();

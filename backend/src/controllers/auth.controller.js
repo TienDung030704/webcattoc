@@ -1,9 +1,10 @@
-const authService = require("../service/auth.service");
+const authService = require("@/services/auth.service");
 
 const register = async (req, res) => {
-  const { email, password } = req.body;
+  const { username, email, password } = req.body;
   const userAgent = req.headers["user-agent"];
   const userTokens = await authService.handleRegister(
+    username,
     email,
     password,
     userAgent,
@@ -37,8 +38,23 @@ const refreshToken = async (req, res) => {
   res.success(data);
 };
 
+const logout = async (req, res) => {
+  const refreshToken = req.body?.refreshToken;
+  const [error, data] = await authService.handleLogout(refreshToken);
+
+  if (error) return res.unauthorized();
+
+  res.success(data);
+};
+
 const getCurrentUser = async (req, res) => {
   res.success(req.auth.user);
 };
 
-module.exports = { login, register, refreshToken, getCurrentUser };
+module.exports = {
+  login,
+  register,
+  refreshToken,
+  logout,
+  getCurrentUser,
+};

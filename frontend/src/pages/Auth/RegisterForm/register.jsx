@@ -1,12 +1,86 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { useNavigate } from "react-router-dom";
+
+import { registerSchema } from "@/utils/validate";
+import { useAutoRegister } from "@/features/Auth/hook";
+import { toast } from "sonner";
 
 function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const registerApi = useAutoRegister();
+  const navigate = useNavigate();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    defaultValues: {
+      username: "",
+      email: "",
+      password: "",
+      password_confirmation: "",
+    },
+    resolver: yupResolver(registerSchema),
+  });
+
+  const onSubmit = async (data) => {
+    try {
+      const payload = {
+        username: data.username,
+        email: data.email,
+        password: data.password,
+      };
+
+      const result = await registerApi(payload);
+
+      if (!result) return;
+
+      const accessToken = result.accessToken || result.access_token;
+      const refreshToken = result.refreshToken || result.refresh_token;
+
+      if (accessToken) {
+        localStorage.setItem("access_token", accessToken);
+      }
+
+      if (refreshToken) {
+        localStorage.setItem("refresh_token", refreshToken);
+      }
+
+      localStorage.setItem("user_data", JSON.stringify(result));
+      setTimeout(() => {
+        toast.success("Đăng ký thành công!", {
+          duration: 2000,
+          position: "top-right",
+          style: {
+            background: "#16a34a",
+            color: "#ffffff",
+            border: "1px solid #15803d",
+          },
+        });
+      });
+      navigate("/auth/login");
+    } catch (error) {
+      console.error("Register failed:", error);
+      const errorMessage = error?.response?.data?.error || "Đăng ký thất bại";
+      toast.error(errorMessage, {
+        position: "top-right",
+        style: {
+          background: "#dc2626",
+          color: "#ffffff",
+          border: "1px solid #b91c1c",
+        },
+      });
+    }
+  };
+
   return (
     <div
-      className="relative flex min-h-screen w-full overflow-hidden"
+      className="relative flex h-screen w-full overflow-hidden"
       style={{
         backgroundImage: "url('/bg-cuthair.png')",
         backgroundSize: "cover",
@@ -16,11 +90,11 @@ function Register() {
       {/* Overlay tối nhẹ toàn màn hình */}
       <div className="absolute inset-0 bg-black/30" />
 
-      {/* LEFT - chiếm nửa trái, chỉ thấy ảnh nền */}
+      {/* LEFT - chiếm nửa trái, không có gì thêm (chỉ thấy ảnh nền) */}
       <div className="hidden w-1/2 lg:block" />
 
-      {/* RIGHT - Form đăng ký */}
-      <div className="relative z-10 flex w-full flex-col items-center justify-center px-6 py-10 lg:w-1/2">
+      {/* RIGHT - Form đăng ký dạng kính mờ */}
+      <div className="relative z-10 flex w-full flex-col items-center justify-center px-6 lg:w-1/2">
         <div
           className="w-full max-w-md rounded-2xl px-10 py-10"
           style={{
@@ -40,7 +114,11 @@ function Register() {
           </p>
 
           {/* Form */}
-          <form className="space-y-5">
+          <form
+            className="space-y-5"
+            noValidate
+            onSubmit={handleSubmit(onSubmit)}
+          >
             {/* Họ và tên */}
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-white/90">
@@ -48,7 +126,6 @@ function Register() {
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-3 flex items-center text-white/50">
-                  {/* User icon */}
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-4 w-4"
@@ -67,19 +144,24 @@ function Register() {
                 <input
                   type="text"
                   placeholder="Nhập họ và tên của bạn"
-                  className="w-full rounded-lg py-3 pr-4 pl-10 text-sm text-white transition outline-none placeholder:text-white/35"
+                  autoComplete="name"
+                  aria-invalid={Boolean(errors.username)}
+                  {...register("username")}
+                  className={`w-full rounded-lg border py-3 pr-4 pl-10 text-sm text-white transition outline-none placeholder:text-white/35 ${
+                    errors.username
+                      ? "border-[#ff7b7b]"
+                      : "border-white/15 focus:border-white/45"
+                  }`}
                   style={{
                     background: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.border = "1px solid rgba(255,255,255,0.45)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.border = "1px solid rgba(255,255,255,0.15)";
                   }}
                 />
               </div>
+              {errors.username ? (
+                <p className="mt-2 text-xs text-[#ff9b9b]">
+                  {errors.username.message}
+                </p>
+              ) : null}
             </div>
 
             {/* Email */}
@@ -89,7 +171,6 @@ function Register() {
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-3 flex items-center text-white/50">
-                  {/* Mail icon */}
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-4 w-4"
@@ -108,19 +189,24 @@ function Register() {
                 <input
                   type="email"
                   placeholder="Nhập email của bạn"
-                  className="w-full rounded-lg py-3 pr-4 pl-10 text-sm text-white transition outline-none placeholder:text-white/35"
+                  autoComplete="email"
+                  aria-invalid={Boolean(errors.email)}
+                  {...register("email")}
+                  className={`w-full rounded-lg border py-3 pr-4 pl-10 text-sm text-white transition outline-none placeholder:text-white/35 ${
+                    errors.email
+                      ? "border-[#ff7b7b]"
+                      : "border-white/15 focus:border-white/45"
+                  }`}
                   style={{
                     background: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.border = "1px solid rgba(255,255,255,0.45)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.border = "1px solid rgba(255,255,255,0.15)";
                   }}
                 />
               </div>
+              {errors.email ? (
+                <p className="mt-2 text-xs text-[#ff9b9b]">
+                  {errors.email.message}
+                </p>
+              ) : null}
             </div>
 
             {/* Mật khẩu */}
@@ -130,7 +216,6 @@ function Register() {
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-3 flex items-center text-white/50">
-                  {/* Lock icon */}
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-4 w-4"
@@ -149,16 +234,16 @@ function Register() {
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Nhập mật khẩu"
-                  className="w-full rounded-lg py-3 pr-10 pl-10 text-sm text-white transition outline-none placeholder:text-white/35"
+                  autoComplete="new-password"
+                  aria-invalid={Boolean(errors.password)}
+                  {...register("password")}
+                  className={`w-full rounded-lg border py-3 pr-10 pl-10 text-sm text-white transition outline-none placeholder:text-white/35 ${
+                    errors.password
+                      ? "border-[#ff7b7b]"
+                      : "border-white/15 focus:border-white/45"
+                  }`}
                   style={{
                     background: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.border = "1px solid rgba(255,255,255,0.45)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.border = "1px solid rgba(255,255,255,0.15)";
                   }}
                 />
                 <button
@@ -204,6 +289,11 @@ function Register() {
                   )}
                 </button>
               </div>
+              {errors.password ? (
+                <p className="mt-2 text-xs text-[#ff9b9b]">
+                  {errors.password.message}
+                </p>
+              ) : null}
             </div>
 
             {/* Xác nhận mật khẩu */}
@@ -213,7 +303,6 @@ function Register() {
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-3 flex items-center text-white/50">
-                  {/* Shield icon */}
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-4 w-4"
@@ -232,16 +321,16 @@ function Register() {
                 <input
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="Nhập lại mật khẩu"
-                  className="w-full rounded-lg py-3 pr-10 pl-10 text-sm text-white transition outline-none placeholder:text-white/35"
+                  autoComplete="new-password"
+                  aria-invalid={Boolean(errors.password_confirmation)}
+                  {...register("password_confirmation")}
+                  className={`w-full rounded-lg border py-3 pr-10 pl-10 text-sm text-white transition outline-none placeholder:text-white/35 ${
+                    errors.password_confirmation
+                      ? "border-[#ff7b7b]"
+                      : "border-white/15 focus:border-white/45"
+                  }`}
                   style={{
                     background: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.border = "1px solid rgba(255,255,255,0.45)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.border = "1px solid rgba(255,255,255,0.15)";
                   }}
                 />
                 <button
@@ -287,6 +376,11 @@ function Register() {
                   )}
                 </button>
               </div>
+              {errors.password_confirmation ? (
+                <p className="mt-2 text-xs text-[#ff9b9b]">
+                  {errors.password_confirmation.message}
+                </p>
+              ) : null}
             </div>
 
             {/* Nút đăng ký */}
@@ -431,6 +525,6 @@ function Register() {
       </a>
     </div>
   );
-}
 
+}
 export default Register;

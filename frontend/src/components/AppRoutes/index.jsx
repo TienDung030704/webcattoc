@@ -12,9 +12,23 @@ import ForgotPassword from "@/pages/Auth/ForgotForm/ForgotPassword";
 import Home from "@/pages/Home";
 import ServicePage from "@/pages/ServicePage";
 import ProductPage from "@/pages/ProductPage";
+import ProductDetailPage from "@/pages/ProductPage/ProductDetail";
+import ShoppingCartPage from "@/pages/ShoppingCart";
+import PaymentPage from "@/pages/PaymentPage";
+import PaymentSuccessPage from "@/pages/PaymentSuccessPage";
 import NewsPage from "@/pages/NewsPage";
 import StoresPage from "@/pages/StoresPage";
 import ContactPage from "@/pages/ContactPage";
+import BookingHairPage from "@/pages/BookingHair";
+import InformationIndividualPage from "@/pages/Information-Individual";
+import AdminPage from "@/pages/Admin";
+import AdminDashboardPage from "@/pages/Admin/AdminDashboard";
+import AppointmentManagerPage from "@/pages/Admin/AppointmentManager";
+import ProductManagerPage from "@/pages/Admin/ProductManager";
+import CustomerManagerPage from "@/pages/Admin/CustomerManager";
+import ServiceManagerPage from "@/pages/Admin/ServiceManager";
+import AdminNewsManagerPage from "@/pages/Admin/AdminNewsManager";
+import AdminOrderManagerPage from "@/pages/Admin/AdminOrderManager";
 
 function AppRoutes() {
   return (
@@ -23,9 +37,27 @@ function AppRoutes() {
         <Route index element={<Home />}></Route>
         <Route path="/service" element={<ServicePage />} />
         <Route path="/product" element={<ProductPage />} />
+        <Route path="/product/:productId" element={<ProductDetailPage />} />
+        <Route path="/cart" element={<ShoppingCartPage />} />
+        <Route path="/payment" element={<PaymentPage />} />
+        <Route path="/payment/success" element={<PaymentSuccessPage />} />
         <Route path="/news" element={<NewsPage />} />
         <Route path="/stores" element={<StoresPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/booking" element={<BookingHairPage />} />
+        <Route
+          path="/information-individual"
+          element={<InformationIndividualPage />}
+        />
+        <Route path="/admin" element={<AdminPage />}>
+          <Route index element={<AdminDashboardPage />} />
+          <Route path="appointments" element={<AppointmentManagerPage />} />
+          <Route path="services" element={<ServiceManagerPage />} />
+          <Route path="news" element={<AdminNewsManagerPage />} />
+          <Route path="products" element={<ProductManagerPage />} />
+          <Route path="orders" element={<AdminOrderManagerPage />} />
+          <Route path="customers" element={<CustomerManagerPage />} />
+        </Route>
       </Route>
       <Route element={<AuthLayout />}>
         <Route path="/auth/login" element={<Login />} />

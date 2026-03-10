@@ -1,9 +1,20 @@
 import { configureStore } from "@reduxjs/toolkit";
+import { authLoginSlice } from "@/features/Auth/authLogin";
+import { authRegisterSlice } from "@/features/Auth/authRegister";
+import { authLogoutSlice } from "@/features/Auth/authLogout";
+import { cartSlice } from "@/features/cart/cartSlice";
+import { favoriteSlice } from "@/features/favorite/favoriteSlice";
+import { productSlice } from "@/features/product/productSlice";
 
-const rootReducer = (state = {}) => state;
-
-const store = configureStore({
-  reducer: rootReducer,
+export const store = configureStore({
+  reducer: {
+    [authRegisterSlice.reducerPath]: authRegisterSlice.reducer,
+    [authLoginSlice.reducerPath]: authLoginSlice.reducer,
+    [authLogoutSlice.reducerPath]: authLogoutSlice.reducer,
+    [productSlice.reducerPath]: productSlice.reducer,
+    [favoriteSlice.reducerPath]: favoriteSlice.reducer,
+    [cartSlice.reducerPath]: cartSlice.reducer,
+  },
 });
 
-export default store;
+window.store = store;

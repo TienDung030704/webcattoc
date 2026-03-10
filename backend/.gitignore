@@ -1,0 +1,30 @@
+node_modules
+
+# Keep environment variables out of version control
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Generated files
+/src/generated/prisma
+/generated/
+
+# User uploads
+/uploads
+
+# Logs
+logs/
+*.log
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+prisma/*.db
+prisma/*.db-journal
+
+# Cache
+.cache/
+.eslintcache
