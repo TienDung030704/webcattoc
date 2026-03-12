@@ -7,8 +7,14 @@ import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import HeaderAuthArea from "@/components/Header/AuthIsStatus/AuthStatus";
 import { useCartActions } from "@/features/cart/hook";
-import { useFavoriteActions, useFavoriteStatus } from "@/features/favorite/hook";
-import { useProductActions, useProductDetailState } from "@/features/product/hook";
+import {
+  useFavoriteActions,
+  useFavoriteStatus,
+} from "@/features/favorite/hook";
+import {
+  useProductActions,
+  useProductDetailState,
+} from "@/features/product/hook";
 import { formatCurrency } from "@/utils/dashboard";
 
 function getStockBadge(product) {
@@ -52,7 +58,8 @@ function ProductDetailPage() {
   const { addToCart } = useCartActions();
   const { getFavoriteStatus, addFavorite, removeFavorite, getFavorites } =
     useFavoriteActions();
-  const { isFavorite, isLoading: isFavoriteLoading } = useFavoriteStatus(productId);
+  const { isFavorite, isLoading: isFavoriteLoading } =
+    useFavoriteStatus(productId);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const isLoggedIn = Boolean(localStorage.getItem("access_token"));
@@ -73,7 +80,6 @@ function ProductDetailPage() {
     // Nếu đã đăng nhập thì lấy trạng thái favorite thật từ backend để heart không phụ thuộc localStorage cũ.
     getFavoriteStatus(productId);
   }, [getFavoriteStatus, isLoggedIn, productId]);
-
 
   const imageGallery = useMemo(() => {
     if (!product) {
@@ -128,9 +134,12 @@ function ProductDetailPage() {
     const result = await action(product.id);
 
     if (result?.meta?.requestStatus !== "fulfilled") {
-      toast.error(result?.payload || "Không thể cập nhật trạng thái yêu thích", {
-        position: "top-right",
-      });
+      toast.error(
+        result?.payload || "Không thể cập nhật trạng thái yêu thích",
+        {
+          position: "top-right",
+        },
+      );
       return;
     }
 
@@ -153,7 +162,10 @@ function ProductDetailPage() {
       return;
     }
 
-    if (product.stockStatus === "OUT_OF_STOCK" || Number(product.stock || 0) <= 0) {
+    if (
+      product.stockStatus === "OUT_OF_STOCK" ||
+      Number(product.stock || 0) <= 0
+    ) {
       toast.error("Sản phẩm này hiện đang hết hàng", {
         position: "top-right",
       });
@@ -452,7 +464,9 @@ function ProductDetailPage() {
                       <div className="inline-flex items-center overflow-hidden rounded-xl border border-white/12 bg-[#120d08]">
                         <button
                           type="button"
-                          onClick={() => handleChangeQuantity(Math.max(1, quantity - 1))}
+                          onClick={() =>
+                            handleChangeQuantity(Math.max(1, quantity - 1))
+                          }
                           className="flex h-10 w-10 items-center justify-center text-lg font-bold text-white/75 transition hover:bg-white/8 hover:text-white"
                         >
                           -
@@ -480,7 +494,7 @@ function ProductDetailPage() {
                             Hotline đặt hàng
                           </p>
                           <p className="mt-1 text-2xl font-black tracking-[0.03em] text-[#f4e3c3]">
-                            0123 456 789
+                            0869 271 243
                           </p>
                         </div>
                       </div>
@@ -493,7 +507,9 @@ function ProductDetailPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleAddProductToCart({ redirectToCart: true })}
+                        onClick={() =>
+                          handleAddProductToCart({ redirectToCart: true })
+                        }
                         className="inline-flex min-h-13 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#7b1717_0%,#8e2323_48%,#a43434_100%)] px-5 py-3 text-[15px] font-bold text-white transition hover:brightness-110"
                       >
                         Mua ngay
@@ -510,7 +526,7 @@ function ProductDetailPage() {
                   Mô tả chi tiết
                 </p>
                 <h2 className="mt-3 text-2xl font-bold text-[#f4e3c3]">
-                  Vì sao sản phẩm này phù hợp với mày?
+                  Vì sao sản phẩm này phù hợp với bạn?
                 </h2>
                 <div className="mt-4 text-sm leading-7 break-words whitespace-pre-line text-white/70">
                   {product.description?.trim() ||

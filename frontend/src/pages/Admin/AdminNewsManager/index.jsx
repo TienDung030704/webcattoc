@@ -35,7 +35,6 @@ const PUBLISH_FILTER_OPTIONS = [
 const INITIAL_FORM_VALUES = {
   title: "",
   slug: "",
-  summary: "",
   thumbnail: "",
   content: "",
   isPublished: false,
@@ -202,7 +201,6 @@ function AdminNewsManagerPage() {
     setFormValues({
       title: news?.title || "",
       slug: news?.slug || "",
-      summary: news?.summary || "",
       thumbnail: news?.thumbnail || "",
       content: news?.content || "",
       isPublished: Boolean(news?.isPublished),
@@ -331,7 +329,6 @@ function AdminNewsManagerPage() {
 
     // Chuẩn hóa payload trước khi gửi để backend nhận đúng kiểu dữ liệu mong muốn.
     payload.append("title", formValues.title.trim());
-    payload.append("summary", formValues.summary.trim());
     payload.append("content", formValues.content.trim());
     payload.append("isPublished", String(Boolean(formValues.isPublished)));
 
@@ -870,19 +867,6 @@ function AdminNewsManagerPage() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="news-summary">Tóm tắt</Label>
-              <Textarea
-                id="news-summary"
-                value={formValues.summary}
-                onChange={(event) =>
-                  handleFormChange("summary", event.target.value)
-                }
-                placeholder="Nhập tóm tắt ngắn cho bài viết"
-                rows={4}
-              />
             </div>
 
             <div className="space-y-2 md:col-span-2">

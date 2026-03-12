@@ -6,6 +6,22 @@ const authConfig = require("../config/authConfig");
 const randomString = require("../../utils/randomString");
 
 class AuthService {
+  buildAuthenticatedUserPayload(user, tokens = {}) {
+    // Luôn trả full profile cơ bản để frontend lưu localStorage nhất quán sau login/register.
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName || null,
+      lastName: user.lastName || null,
+      avatar: user.avatar || null,
+      role: user.role,
+      isVerified: Boolean(user.isVerified),
+      emailVerifiedAt: user.emailVerifiedAt || null,
+      ...tokens,
+    };
+  }
+
   // Xử lý đăng ký user mới
   async handleRegister(username, email, password, userAgent) {
     // Hash password để bảo mật
@@ -17,12 +33,7 @@ class AuthService {
     });
     // Tạo cặp token cho user
     const userTokens = await this.generateUserTokens(user, userAgent);
-    return {
-      id: user.id,
-      username: user.username,
-      role: user.role,
-      ...userTokens,
-    };
+    return this.buildAuthenticatedUserPayload(user, userTokens);
   }
 
   // Xử lý đăng nhập
@@ -35,21 +46,18 @@ class AuthService {
       return [true, null];
     }
 
+    // Tài khoản Google không có password
+    if (!user.password) {
+      return [true, null];
+    }
+
     // Kiểm tra password có đúng không
     const isValidPassword = await bcrypt.compare(password, user.password);
 
     if (isValidPassword) {
-      // Password đúng → tạo token
+      // Password đúng → tạo token và trả luôn profile hiện tại để lần đăng nhập sau không bị mất tên đã cập nhật.
       const userTokens = await this.generateUserTokens(user, userAgent);
-      return [
-        null,
-        {
-          id: user.id,
-          username: user.username,
-          role: user.role,
-          ...userTokens,
-        },
-      ];
+      return [null, this.buildAuthenticatedUserPayload(user, userTokens)];
     }
     // Password sai
     return [true, null];
@@ -60,10 +68,25 @@ class AuthService {
     // Tìm refresh token trong database
     const refreshToken = await prisma.refreshToken.findUnique({
       where: { token },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            role: true,
+            isVerified: true,
+            emailVerifiedAt: true,
+          },
+        },
+      },
     });
 
     // Nếu token không hợp lệ
-    if (!refreshToken) {
+    if (!refreshToken || !refreshToken.user) {
       return [true, null];
     }
 
@@ -73,10 +96,14 @@ class AuthService {
       data: { isRevoked: true },
     });
 
-    // Tạo fake user object để tạo token mới
-    const user = { id: refreshToken.userId };
-    const userTokens = await this.generateUserTokens(user, userAgent);
-    return [null, userTokens];
+    const userTokens = await this.generateUserTokens(
+      refreshToken.user,
+      userAgent,
+    );
+    return [
+      null,
+      this.buildAuthenticatedUserPayload(refreshToken.user, userTokens),
+    ];
   }
 
   // Xử lý đăng xuất
@@ -128,6 +155,49 @@ class AuthService {
     });
 
     return refreshToken.token;
+  }
+
+  // Xử lý đăng nhập bằng Google OAuth
+  // Google OAuth - tự tìm hoặc tạo user
+  async handleGoogleAuth(googleId, email, displayName, avatar, userAgent) {
+    let isNewUser = false;
+    let user = await prisma.user.findUnique({ where: { googleId } });
+
+    if (!user) {
+      // Thử tìm theo email
+      const existingEmail = await prisma.user.findUnique({ where: { email } });
+      if (existingEmail) {
+        // Liên kết googleId vào tài khoản cũ
+        user = await prisma.user.update({
+          where: { id: existingEmail.id },
+          data: { googleId, isVerified: true },
+        });
+      } else {
+        // Tạo tài khoản mới
+        isNewUser = true;
+        const nameParts = (displayName || "").split(" ");
+        const firstName = nameParts.slice(0, -1).join(" ") || displayName || "";
+        const lastName = nameParts[nameParts.length - 1] || "";
+        user = await prisma.user.create({
+          data: {
+            googleId,
+            email,
+            username: email.split("@")[0],
+            firstName,
+            lastName,
+            avatar,
+            isVerified: true,
+            password: null,
+          },
+        });
+      }
+    }
+
+    const userTokens = await this.generateUserTokens(user, userAgent);
+    return [
+      null,
+      { ...this.buildAuthenticatedUserPayload(user, userTokens), isNewUser },
+    ];
   }
 
   // Lấy thông tin user theo ID

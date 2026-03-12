@@ -7,6 +7,7 @@ import {
   decrementCartItem,
   incrementCartItem,
   removeFromCart,
+  syncCartStorageByCurrentUser,
   updateCartItemQuantity,
 } from "@/features/cart/cartSlice";
 
@@ -54,6 +55,7 @@ export const useCartActions = () => {
       decrementCartItem: (productId) => dispatch(decrementCartItem(productId)),
       removeFromCart: (productId) => dispatch(removeFromCart(productId)),
       clearCart: () => dispatch(clearCart()),
+      syncCartStorageByCurrentUser: () => dispatch(syncCartStorageByCurrentUser()),
     }),
     [dispatch],
   );

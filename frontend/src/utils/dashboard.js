@@ -23,3 +23,15 @@ export function mapAppointmentStatus(status) {
   if (status === "CANCELED") return "Đã hủy";
   return "Chờ";
 }
+
+export function mapPaymentMethod(paymentMethod) {
+  if (paymentMethod === "BANK_TRANSFER") return "Chuyển khoản";
+  if (paymentMethod === "COD") return "Tiền mặt";
+  return "Khác";
+}
+
+export function mapPaymentStatus(paymentStatus) {
+  if (paymentStatus === "PAID") return "Đã thanh toán";
+  if (paymentStatus === "PENDING") return "Chờ thanh toán";
+  return "Chưa rõ";
+}

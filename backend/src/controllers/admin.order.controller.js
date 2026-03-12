@@ -49,8 +49,20 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
+const confirmOrderPayment = async (req, res) => {
+  try {
+    const orderId = parseOrderId(req.params.id);
+    const data = await adminOrderService.confirmOrderPayment(orderId, req.body);
+    res.success(data);
+  } catch (error) {
+    const message = error?.message || "Không thể xác nhận thanh toán đơn hàng";
+    res.error(message, getOrderErrorStatus(message));
+  }
+};
+
 module.exports = {
   getOrders,
   getOrderById,
   updateOrderStatus,
+  confirmOrderPayment,
 };

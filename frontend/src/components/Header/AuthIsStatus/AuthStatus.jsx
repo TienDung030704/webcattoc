@@ -8,7 +8,7 @@ import {
   ShoppingCart,
   User,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import {
@@ -20,17 +20,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAutoLogout, useGetCurrentUser } from "@/features/Auth/hook";
-import { useCartCount } from "@/features/cart/hook";
+import { useCartActions, useCartCount } from "@/features/cart/hook";
 import { useFavoriteActions, useFavoriteCount } from "@/features/favorite/hook";
 import { formatTime } from "@/utils/dashboard";
 import http from "@/utils/http";
 
+const ADMIN_NOTIFICATIONS_UPDATED_EVENT = "admin-notifications-updated";
+const ADMIN_NOTIFICATIONS_POLLING_MS = 25 * 1000;
 
 function HeaderAuthArea() {
   const navigate = useNavigate();
+  const location = useLocation();
   const logoutApi = useAutoLogout();
   const currentUser = useGetCurrentUser();
   const { getFavorites, resetFavoritesState } = useFavoriteActions();
+  const { syncCartStorageByCurrentUser } = useCartActions();
   const favoriteCount = useFavoriteCount();
   const cartCount = useCartCount();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -43,6 +47,10 @@ function HeaderAuthArea() {
     [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(" ") ||
     "Khách hàng";
   const isAdmin = currentUser?.role === "ADMIN";
+  const isFavoritePage = location.pathname === "/favorite";
+  const favoriteButtonClass = isFavoritePage
+    ? "bg-[#f3dfb8] text-[#5a3410] shadow-[0_0_0_1px_rgba(243,223,184,0.35)]"
+    : "text-white/80 hover:bg-white/10 hover:text-white";
 
   const clearAuthStorage = () => {
     localStorage.removeItem("access_token");
@@ -51,6 +59,9 @@ function HeaderAuthArea() {
   };
 
   useEffect(() => {
+    // Đồng bộ lại cart theo account hiện tại mỗi khi auth state đổi để badge/cart page không bị dùng dữ liệu của user trước đó.
+    syncCartStorageByCurrentUser();
+
     if (!isLoggedIn) {
       // Khi chưa đăng nhập thì reset favorites để badge không bị giữ lại từ session trước.
       resetFavoritesState();
@@ -58,34 +69,71 @@ function HeaderAuthArea() {
     }
 
     getFavorites();
-  }, [getFavorites, isLoggedIn, resetFavoritesState]);
+  }, [getFavorites, isLoggedIn, resetFavoritesState, syncCartStorageByCurrentUser]);
 
   useEffect(() => {
     // Chỉ ADMIN mới có quyền đọc notification từ nhánh /admin.
     if (!isLoggedIn || !isAdmin) {
       setNotifications([]);
       setNotificationUnreadCount(0);
+      setIsNotificationsLoading(false);
       return;
     }
-    const fetchNotifications = async () => {
-      setIsNotificationsLoading(true);
+
+    let isDisposed = false;
+
+    const refreshNotifications = async ({ showLoading = false } = {}) => {
+      if (showLoading && !isDisposed) {
+        setIsNotificationsLoading(true);
+      }
+
       try {
         const [notificationsData, unreadCountData] = await Promise.all([
           http.get("admin/notifications?limit=5"),
           http.get("admin/notifications/unread-count"),
         ]);
 
+        if (isDisposed) {
+          return;
+        }
+
         setNotifications(notificationsData?.data?.items || []);
         setNotificationUnreadCount(unreadCountData?.data ?? 0);
       } catch {
-        setNotifications([]);
-        setNotificationUnreadCount(0);
+        if (isDisposed) {
+          return;
+        }
       } finally {
-        setIsNotificationsLoading(false);
+        if (showLoading && !isDisposed) {
+          setIsNotificationsLoading(false);
+        }
       }
     };
 
-    fetchNotifications();
+    // Vừa poll định kỳ để nhận thông báo mới không cần reload, vừa lắng nghe event sync cùng tab.
+    const handleNotificationsUpdated = () => {
+      refreshNotifications();
+    };
+
+    refreshNotifications({ showLoading: true });
+
+    const intervalId = window.setInterval(() => {
+      refreshNotifications();
+    }, ADMIN_NOTIFICATIONS_POLLING_MS);
+
+    window.addEventListener(
+      ADMIN_NOTIFICATIONS_UPDATED_EVENT,
+      handleNotificationsUpdated,
+    );
+
+    return () => {
+      isDisposed = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener(
+        ADMIN_NOTIFICATIONS_UPDATED_EVENT,
+        handleNotificationsUpdated,
+      );
+    };
   }, [isLoggedIn, isAdmin]);
 
   const handleMarkAllNotificationsAsRead = async () => {
@@ -95,6 +143,9 @@ function HeaderAuthArea() {
       await http.patch("admin/notifications/read-all");
       setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
       setNotificationUnreadCount(0);
+
+      // Bắn event để dashboard và các nơi khác trong cùng tab đồng bộ trạng thái đã đọc ngay.
+      window.dispatchEvent(new CustomEvent(ADMIN_NOTIFICATIONS_UPDATED_EVENT));
     } catch {
       toast.error("Không thể đánh dấu tất cả thông báo là đã đọc", {
         position: "top-right",
@@ -226,10 +277,12 @@ function HeaderAuthArea() {
 
       <button
         type="button"
-        className="relative rounded-md p-1.5 text-white/80 transition hover:bg-white/10 hover:text-white"
+        onClick={() => navigate("/favorite")}
+        className={`relative rounded-md p-1.5 transition ${favoriteButtonClass}`}
         aria-label="Yêu thích"
+        aria-pressed={isFavoritePage}
       >
-        <Heart className="h-5 w-5" />
+        <Heart className={`h-5 w-5 ${isFavoritePage ? "fill-current" : ""}`} />
         <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
           {favoriteCount > 99 ? "99+" : favoriteCount}
         </span>

@@ -30,3 +30,13 @@ export const resetSchema = object({
     .min(8, "Mật khẩu ít nhất 8 kí tự"),
   password_confirmation: string().oneOf([ref("password")], "Mật khẩu kh khớp"),
 });
+
+export const changePasswordSchema = object({
+  currentPassword: string()
+    .required("Mật khẩu hiện tại là bắt buộc")
+    .min(8, "Mật khẩu hiện tại ít nhất 8 kí tự"),
+  newPassword: string()
+    .required("Mật khẩu mới là bắt buộc")
+    .min(8, "Mật khẩu mới ít nhất 8 kí tự"),
+  confirmPassword: string().oneOf([ref("newPassword")], "Mật khẩu xác nhận không khớp"),
+});

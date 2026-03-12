@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarRange, LoaderCircle, Search } from "lucide-react";
 import { toast } from "sonner";
 
@@ -7,6 +7,8 @@ import {
   formatCurrency,
   formatTime,
   mapAppointmentStatus,
+  mapPaymentMethod,
+  mapPaymentStatus,
 } from "@/utils/dashboard";
 
 const STATUS_OPTIONS = [
@@ -23,6 +25,18 @@ const STATUS_TRANSITIONS = {
   COMPLETED: [],
   CANCELED: [],
 };
+
+function formatDateTime(value) {
+  if (!value) return "--";
+
+  return new Date(value).toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 function AppointmentManagerPage() {
   // Lưu filter để đồng bộ query với API quản lý lịch hẹn của admin.
@@ -43,6 +57,7 @@ function AppointmentManagerPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [updatingId, setUpdatingId] = useState("");
+  const [payingId, setPayingId] = useState("");
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -65,38 +80,38 @@ function AppointmentManagerPage() {
     return params.toString();
   }, [filters]);
 
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      setIsLoading(true);
-      setErrorMessage("");
+  const fetchAppointments = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMessage("");
 
-      try {
-        const response = await http.get(`admin/appointments?${queryString}`);
-        setAppointments(response?.data?.items || []);
-        setPagination(
-          response?.data?.pagination || {
-            page: 1,
-            limit: filters.limit,
-            total: 0,
-            totalPages: 1,
-          }
-        );
-      } catch (error) {
-        setAppointments([]);
-        setPagination({
+    try {
+      const response = await http.get(`admin/appointments?${queryString}`);
+      setAppointments(response?.data?.items || []);
+      setPagination(
+        response?.data?.pagination || {
           page: 1,
           limit: filters.limit,
           total: 0,
           totalPages: 1,
-        });
-        setErrorMessage("Không thể tải danh sách lịch hẹn.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAppointments();
+        },
+      );
+    } catch (error) {
+      setAppointments([]);
+      setPagination({
+        page: 1,
+        limit: filters.limit,
+        total: 0,
+        totalPages: 1,
+      });
+      setErrorMessage("Không thể tải danh sách lịch hẹn.");
+    } finally {
+      setIsLoading(false);
+    }
   }, [filters.limit, queryString]);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   const handleFilterChange = (key, value) => {
     // Khi đổi bộ lọc thì luôn quay lại trang đầu để tránh lệch dữ liệu phân trang.
@@ -119,17 +134,21 @@ function AppointmentManagerPage() {
 
     setUpdatingId(String(appointmentId));
     try {
-      await http.patch(`admin/appointments/${appointmentId}/status`, {
+      const response = await http.patch(`admin/appointments/${appointmentId}/status`, {
         status: nextStatus,
       });
+      const updatedAppointment = response?.data;
 
       setAppointments((prev) =>
         prev.map((item) =>
           String(item.id) === String(appointmentId)
-            ? { ...item, status: nextStatus }
-            : item
-        )
+            ? { ...item, ...(updatedAppointment || {}), status: nextStatus }
+            : item,
+        ),
       );
+
+      // Re-fetch ngay sau khi update để badge/trạng thái luôn đồng bộ ngay từ lần bấm đầu tiên.
+      await fetchAppointments();
 
       toast.success("Cập nhật trạng thái lịch hẹn thành công", {
         position: "top-right",
@@ -146,6 +165,43 @@ function AppointmentManagerPage() {
     }
   };
 
+  const handleConfirmPayment = async (appointmentId, paymentMethod = "COD") => {
+    setPayingId(String(appointmentId));
+    try {
+      const response = await http.patch(`admin/appointments/${appointmentId}/payment`, {
+        paymentMethod,
+      });
+      const updatedAppointment = response?.data;
+
+      // Đồng bộ lại row hiện tại để cashier thấy ngay lịch đã được ghi nhận thu tiền.
+      setAppointments((prev) =>
+        prev.map((item) =>
+          String(item.id) === String(appointmentId)
+            ? { ...item, ...(updatedAppointment || {}) }
+            : item,
+        ),
+      );
+
+      // Re-fetch để ngày thu tiền và trạng thái thanh toán hiển thị đúng ngay sau khi xác nhận.
+      await fetchAppointments();
+
+      toast.success("Đã xác nhận thanh toán lịch hẹn", {
+        position: "top-right",
+      });
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          "Không thể xác nhận thanh toán lịch hẹn",
+        {
+          position: "top-right",
+        }
+      );
+    } finally {
+      setPayingId("");
+    }
+  };
+
   return (
     <div className="admin-card-reveal rounded-2xl border border-[#5a3e1d] bg-[#120d09]/82 p-4 shadow-[0_20px_80px_rgba(0,0,0,0.45)] md:p-5">
       <div className="flex flex-col gap-3 border-b border-white/10 pb-4 md:flex-row md:items-end md:justify-between">
@@ -157,8 +213,8 @@ function AppointmentManagerPage() {
             Quản lý đặt lịch
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-white/60">
-            Theo dõi danh sách lịch hẹn, lọc nhanh theo trạng thái và cập nhật tiến
-            trình xử lý ngay trong trang quản trị.
+            Theo dõi danh sách lịch hẹn, lọc nhanh theo trạng thái, xác nhận thu tiền
+            thủ công và cập nhật tiến trình xử lý ngay trong trang quản trị.
           </p>
         </div>
 
@@ -221,7 +277,7 @@ function AppointmentManagerPage() {
 
       <section className="mt-4 overflow-hidden rounded-2xl border border-[#5a3e1d] bg-[#100b08]/95">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-left text-sm">
+          <table className="w-full min-w-[1280px] text-left text-sm">
             <thead className="bg-[#17100b] text-white/55">
               <tr className="border-b border-white/10">
                 <th className="px-4 py-3">Mã lịch</th>
@@ -231,13 +287,17 @@ function AppointmentManagerPage() {
                 <th className="px-4 py-3">Giờ hẹn</th>
                 <th className="px-4 py-3">Số tiền</th>
                 <th className="px-4 py-3">Trạng thái</th>
+                <th className="px-4 py-3">Thanh toán</th>
+                <th className="px-4 py-3">Phương thức</th>
+                <th className="px-4 py-3">Ngày thu tiền</th>
+                <th className="px-4 py-3">Thu tiền</th>
                 <th className="px-4 py-3">Cập nhật</th>
               </tr>
             </thead>
             <tbody className="text-white/85">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-white/60">
+                  <td colSpan={12} className="px-4 py-10 text-center text-white/60">
                     <span className="inline-flex items-center gap-2">
                       <LoaderCircle className="h-4 w-4 animate-spin" />
                       Đang tải danh sách lịch hẹn...
@@ -248,6 +308,10 @@ function AppointmentManagerPage() {
                 appointments.map((item) => {
                   const nextStatuses = STATUS_TRANSITIONS[item.status] || [];
                   const isUpdating = updatingId === String(item.id);
+                  const isPaying = payingId === String(item.id);
+                  const isPaid = item.paymentStatus === "PAID";
+                  const isCanceled = item.status === "CANCELED";
+                  const canConfirmPayment = item.status === "COMPLETED" && !isPaid;
 
                   return (
                     <tr key={String(item.id)} className="border-b border-white/5 last:border-b-0">
@@ -261,6 +325,53 @@ function AppointmentManagerPage() {
                         <span className="inline-flex rounded-full border border-[#6b491f] bg-[#2b1d10]/80 px-3 py-1 text-xs font-semibold text-[#f1cb88]">
                           {mapAppointmentStatus(item.status)}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200">
+                          {mapPaymentStatus(item.paymentStatus)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-white/70">
+                        {mapPaymentMethod(item.paymentMethod)}
+                      </td>
+                      <td className="px-4 py-3 text-white/70">
+                        {item.paymentConfirmedAt ? formatDateTime(item.paymentConfirmedAt) : "--"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {isPaid ? (
+                          <span className="text-xs text-emerald-300">Đã xác nhận thu tiền</span>
+                        ) : isCanceled ? (
+                          <span className="text-xs text-white/40">Lịch đã hủy</span>
+                        ) : canConfirmPayment ? (
+                          <div className="flex items-center gap-2">
+                            <select
+                              defaultValue=""
+                              disabled={isPaying}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                event.target.value = "";
+                                if (!value) return;
+                                handleConfirmPayment(item.id, value);
+                              }}
+                              className="rounded-lg border border-white/10 bg-[#17100b] px-3 py-2 text-xs text-white outline-none"
+                            >
+                              <option value="" className="bg-[#120d09]">
+                                Xác nhận thanh toán
+                              </option>
+                              <option value="COD" className="bg-[#120d09]">
+                                Tiền mặt
+                              </option>
+                              <option value="BANK_TRANSFER" className="bg-[#120d09]">
+                                Chuyển khoản
+                              </option>
+                            </select>
+                            {isPaying ? (
+                              <LoaderCircle className="h-4 w-4 animate-spin text-[#e8cf9d]" />
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-white/30">--</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {nextStatuses.length > 0 ? (
@@ -297,7 +408,7 @@ function AppointmentManagerPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-white/55">
+                  <td colSpan={12} className="px-4 py-10 text-center text-white/55">
                     Không có lịch hẹn nào phù hợp với bộ lọc hiện tại.
                   </td>
                 </tr>

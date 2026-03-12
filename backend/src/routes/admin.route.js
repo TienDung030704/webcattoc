@@ -21,10 +21,14 @@ router.get(
 );
 router.get("/dashboard/new-customers", adminController.getNewCustomersToday);
 router.get("/dashboard/today-revenue", adminController.getTodayRevenue);
+router.get("/dashboard/weekly-revenue", adminController.getWeeklyRevenue);
 router.get(
   "/dashboard/most-popular-service",
   adminController.getMostPopularService,
 );
+
+// API báo cáo doanh thu từ các lịch đã hoàn thành và đã xác nhận thu tiền.
+router.get("/revenue", adminController.getRevenue);
 
 // Nhóm API quản lý lịch hẹn cho admin.
 router.get("/appointments/today", adminController.getTodayAppointmentsList);
@@ -32,6 +36,7 @@ router.get("/appointments", adminController.getAppointments);
 router.get("/appointments/:id", adminController.getAppointmentById);
 router.post("/appointments", adminController.createAppointment);
 router.patch("/appointments/:id/status", adminController.updateAppointmentStatus);
+router.patch("/appointments/:id/payment", adminController.confirmAppointmentPayment);
 
 // Nhóm API quản lý khách hàng cho admin.
 router.get("/users", adminController.getUsers);

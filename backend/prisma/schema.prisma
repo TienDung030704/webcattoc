@@ -52,7 +52,8 @@ model User {
   id              BigInt      @id @default(autoincrement())
   username        String?
   email           String      @unique
-  password        String
+  password        String?
+  googleId        String?     @unique
   firstName       String?
   lastName        String?
   avatar          String?
@@ -157,52 +158,81 @@ model Service {
   @@map("services")
 }
 
-model Appointment {
-  id             BigInt            @id @default(autoincrement())
-  userId         BigInt
-  serviceName    String
-  appointmentAt  DateTime
-  amount         Decimal           @db.Decimal(10, 2)
-  status         AppointmentStatus @default(BOOKED)
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+model Branch {
+  id           BigInt        @id @default(autoincrement())
+  name         String
+  city         String
+  district     String
+  address      String        @db.Text
+  isActive     Boolean       @default(true)
+  sortOrder    Int           @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
-  user           User              @relation(fields: [userId], references: [id])
+  appointments Appointment[]
 
-  @@index([userId])
-  @@index([appointmentAt])
-  @@index([status])
-  @@map("appointments")
+  @@index([city])
+  @@index([district])
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("branches")
 }
 
-model Order {
-  id               BigInt        @id @default(autoincrement())
+model Appointment {
+  id               BigInt            @id @default(autoincrement())
   userId           BigInt
-  orderCode        String        @unique
-  status           OrderStatus   @default(PENDING_CONFIRMATION)
-  paymentMethod    PaymentMethod
-  paymentStatus    PaymentStatus @default(PENDING)
-  paymentReference String?
-  subtotal         Decimal       @db.Decimal(10, 2)
-  shippingFee      Decimal       @default(0) @db.Decimal(10, 2)
-  total            Decimal       @db.Decimal(10, 2)
-  customerName     String
-  customerPhone    String
-  customerEmail    String
-  shippingCity     String
-  shippingDistrict String
-  shippingWard     String
-  shippingAddress  String        @db.Text
-  note             String?       @db.Text
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  branchId         BigInt
+  serviceName      String
+  appointmentAt    DateTime
+  amount           Decimal           @db.Decimal(10, 2)
+  status           AppointmentStatus @default(BOOKED)
+  paymentMethod    PaymentMethod     @default(COD)
+  paymentStatus    PaymentStatus     @default(PENDING)
+  paymentConfirmedAt DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
-  user             User          @relation(fields: [userId], references: [id])
-  items            OrderItem[]
+  user             User              @relation(fields: [userId], references: [id])
+  branch           Branch            @relation(fields: [branchId], references: [id])
+
+  @@index([userId])
+  @@index([branchId])
+  @@index([appointmentAt])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([paymentConfirmedAt])
+  @@map("appointments")
+}
+model Order {
+  id                 BigInt        @id @default(autoincrement())
+  userId             BigInt
+  orderCode          String        @unique
+  status             OrderStatus   @default(PENDING_CONFIRMATION)
+  paymentMethod      PaymentMethod
+  paymentStatus      PaymentStatus @default(PENDING)
+  paymentConfirmedAt DateTime?
+  paymentReference   String?
+  subtotal           Decimal       @db.Decimal(10, 2)
+  shippingFee        Decimal       @default(0) @db.Decimal(10, 2)
+  total              Decimal       @db.Decimal(10, 2)
+  customerName       String
+  customerPhone      String
+  customerEmail      String
+  shippingCity       String
+  shippingDistrict   String
+  shippingWard       String
+  shippingAddress    String        @db.Text
+  note               String?       @db.Text
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  user               User          @relation(fields: [userId], references: [id])
+  items              OrderItem[]
 
   @@index([userId])
   @@index([status])
   @@index([paymentStatus])
+  @@index([paymentConfirmedAt])
   @@index([createdAt])
   @@map("orders")
 }

@@ -502,10 +502,6 @@ function ProductPage() {
                             <h3 className="mt-2 text-base font-bold text-[#f4e3c3]">
                               {product.name}
                             </h3>
-                            <p className="mt-2 min-h-[44px] text-sm leading-6 text-white/60">
-                              {product.description ||
-                                "Sản phẩm đang được cập nhật mô tả."}
-                            </p>
 
                             <div className="mt-4 flex items-end justify-between gap-3 border-t border-white/8 pt-4">
                               <div>

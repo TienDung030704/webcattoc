@@ -15,6 +15,17 @@ const getTodayRevenue = async (req, res) => {
   res.success(data);
 };
 
+const getWeeklyRevenue = async (req, res) => {
+  const data = await adminService.getWeeklyRevenue();
+  res.success(data);
+};
+
+const getRevenue = async (req, res) => {
+  // Forward toàn bộ query filter/pagination của trang revenue xuống service.
+  const data = await adminService.getRevenue(req.query);
+  res.success(data);
+};
+
 const getMostPopularService = async (req, res) => {
   const data = await adminService.getMostPopularService();
   res.success(data);
@@ -30,6 +41,15 @@ const getTodayAppointmentsList = async (req, res) => {
     serviceName: item.serviceName,
     appointmentTime: item.appointmentAt,
     status: item.status,
+    branch: item.branch
+      ? {
+          id: item.branch.id,
+          name: item.branch.name,
+          city: item.branch.city,
+          district: item.branch.district,
+          address: item.branch.address,
+        }
+      : null,
   }));
 
   res.success(data);
@@ -70,7 +90,9 @@ const createAppointment = async (req, res) => {
   } catch (error) {
     // Map lỗi nghiệp vụ sang mã HTTP phù hợp cho form admin.
     const message = error?.message || "Không thể tạo lịch hẹn";
-    const status = message === "Không tìm thấy khách hàng" ? 404 : 400;
+    const status = ["Không tìm thấy khách hàng", "Không tìm thấy chi nhánh"].includes(message)
+      ? 404
+      : 400;
     res.error(message, status);
   }
 };
@@ -92,10 +114,25 @@ const updateAppointmentStatus = async (req, res) => {
   }
 };
 
+const confirmAppointmentPayment = async (req, res) => {
+  try {
+    // Parse id sang BigInt rồi cho admin/cashier xác nhận đã thu tiền thủ công.
+    const appointmentId = BigInt(req.params.id);
+    const data = await adminService.confirmAppointmentPayment(appointmentId, req.body);
+    res.success(data);
+  } catch (error) {
+    const message = error?.message || "Không thể xác nhận thanh toán lịch hẹn";
+    const status = message === "Không tìm thấy lịch hẹn" ? 404 : 400;
+    res.error(message, status);
+  }
+};
+
 module.exports = {
   getTotalAppointmentsToday,
   getNewCustomersToday,
   getTodayRevenue,
+  getWeeklyRevenue,
+  getRevenue,
   getMostPopularService,
   getTodayAppointmentsList,
   getAppointments,
@@ -103,4 +140,5 @@ module.exports = {
   getAppointmentById,
   createAppointment,
   updateAppointmentStatus,
+  confirmAppointmentPayment,
 };

@@ -23,6 +23,17 @@ const getServices = async (req, res) => {
   res.success(data);
 };
 
+const getBranches = async (req, res) => {
+  try {
+    // Trả danh sách chi nhánh public qua user namespace để frontend booking tích hợp thống nhất.
+    const data = await userService.getBranches(req.query);
+    res.success(data);
+  } catch (error) {
+    const message = error?.message || "Không thể tải danh sách chi nhánh";
+    res.error(message, getUserErrorStatus(message));
+  }
+};
+
 const getFavorites = async (req, res) => {
   try {
     // Trả danh sách favorite của user hiện tại để frontend render count/list đồng bộ theo account.
@@ -71,7 +82,7 @@ const removeFavorite = async (req, res) => {
 };
 
 const getUserErrorStatus = (message) => {
-  if (["Không tìm thấy người dùng", "Không tìm thấy sản phẩm"].includes(message)) {
+  if (["Không tìm thấy người dùng", "Không tìm thấy sản phẩm", "Không tìm thấy chi nhánh"].includes(message)) {
     return 404;
   }
 
@@ -119,6 +130,17 @@ const updateProfile = async (req, res) => {
   }
 };
 
+const changePassword = async (req, res) => {
+  try {
+    // User chỉ được đổi mật khẩu của chính mình qua userId lấy từ auth middleware.
+    const data = await userService.changePassword(req.auth.user.id, req.body);
+    res.success(data);
+  } catch (error) {
+    const message = error?.message || "Không thể đổi mật khẩu";
+    res.error(message, getUserErrorStatus(message));
+  }
+};
+
 const updateAvatar = async (req, res) => {
   try {
     // Tách riêng API avatar để frontend có thể cập nhật image rõ ràng hơn.
@@ -134,6 +156,7 @@ module.exports = {
   getProducts,
   getProductDetail,
   getServices,
+  getBranches,
   getFavorites,
   getFavoriteStatus,
   addFavorite,
@@ -141,5 +164,6 @@ module.exports = {
   createAppointment,
   createOrder,
   updateProfile,
+  changePassword,
   updateAvatar,
 };

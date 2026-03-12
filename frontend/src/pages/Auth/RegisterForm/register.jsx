@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useNavigate } from "react-router-dom";
 
 import { registerSchema } from "@/utils/validate";
 import { useAutoRegister } from "@/features/Auth/hook";
+import { useCartActions } from "@/features/cart/hook";
+import { useFavoriteActions } from "@/features/favorite/hook";
 import { toast } from "sonner";
 
 function Register() {
@@ -12,7 +14,24 @@ function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const registerApi = useAutoRegister();
+  const { syncCartStorageByCurrentUser } = useCartActions();
+  const { resetFavoritesState } = useFavoriteActions();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") === "google_already_registered") {
+      toast.error("Tài khoản Google này đã đăng ký rồi. Vui lòng đăng nhập!", {
+        position: "top-right",
+        style: {
+          background: "#dc2626",
+          color: "#ffffff",
+          border: "1px solid #b91c1c",
+        },
+      });
+      window.history.replaceState({}, "", "/auth/register");
+    }
+  }, []);
 
   const {
     register,
@@ -52,6 +71,12 @@ function Register() {
       }
 
       localStorage.setItem("user_data", JSON.stringify(result));
+
+      // Tài khoản mới phải có cart/favorites độc lập, không tái sử dụng state còn sót của account trước.
+      resetFavoritesState();
+      syncCartStorageByCurrentUser();
+      window.dispatchEvent(new CustomEvent("user-data-updated"));
+
       setTimeout(() => {
         toast.success("Đăng ký thành công!", {
           duration: 2000,
@@ -437,6 +462,10 @@ function Register() {
 
             {/* Google */}
             <button
+              onClick={() => {
+                sessionStorage.setItem("google_mode", "register");
+                window.location.href = "http://localhost:3000/api/auth/google";
+              }}
               className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full transition hover:scale-110"
               style={{
                 background: "rgba(255,255,255,0.12)",
@@ -525,6 +554,5 @@ function Register() {
       </a>
     </div>
   );
-
 }
 export default Register;

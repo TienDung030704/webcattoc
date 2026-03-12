@@ -5,11 +5,15 @@ import { useNavigate } from "react-router-dom";
 
 import { loginSchema } from "@/utils/validate";
 import { useAutoLogin } from "@/features/Auth/hook";
+import { useCartActions } from "@/features/cart/hook";
+import { useFavoriteActions } from "@/features/favorite/hook";
 import { toast } from "sonner";
 
 function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const loginApi = useAutoLogin();
+  const { syncCartStorageByCurrentUser } = useCartActions();
+  const { resetFavoritesState } = useFavoriteActions();
   const navigate = useNavigate();
 
   const {
@@ -42,6 +46,11 @@ function Login() {
       }
 
       localStorage.setItem("user_data", JSON.stringify(result));
+
+      // Reset favorites state cũ và nạp lại đúng cart theo tài khoản vừa đăng nhập.
+      resetFavoritesState();
+      syncCartStorageByCurrentUser();
+      window.dispatchEvent(new CustomEvent("user-data-updated"));
 
       setTimeout(() => {
         toast.success("Đăng nhập thành công!", {
@@ -308,6 +317,10 @@ function Login() {
 
             {/* Google */}
             <button
+              onClick={() => {
+                sessionStorage.setItem("google_mode", "login");
+                window.location.href = "http://localhost:3000/api/auth/google";
+              }}
               className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full transition hover:scale-110"
               style={{
                 background: "rgba(255,255,255,0.12)",

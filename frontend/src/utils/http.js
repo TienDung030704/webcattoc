@@ -21,8 +21,9 @@ const refreshToken = async () => {
       refreshToken: localStorage.getItem("refresh_token"),
     });
 
-    const nextAccessToken = result?.data?.accessToken || result?.accessToken;
-    const nextRefreshToken = result?.data?.refreshToken || result?.refreshToken;
+    const payload = result?.data || result;
+    const nextAccessToken = payload?.accessToken || payload?.access_token;
+    const nextRefreshToken = payload?.refreshToken || payload?.refresh_token;
 
     if (nextAccessToken) {
       localStorage.setItem("access_token", nextAccessToken);
@@ -30,6 +31,25 @@ const refreshToken = async () => {
 
     if (nextRefreshToken) {
       localStorage.setItem("refresh_token", nextRefreshToken);
+    }
+
+    if (payload) {
+      const currentUserData = localStorage.getItem("user_data");
+      let mergedUserData = payload;
+
+      if (currentUserData) {
+        try {
+          mergedUserData = {
+            ...JSON.parse(currentUserData),
+            ...payload,
+          };
+        } catch {
+          mergedUserData = payload;
+        }
+      }
+
+      localStorage.setItem("user_data", JSON.stringify(mergedUserData));
+      window.dispatchEvent(new Event("user-data-updated"));
     }
 
     processQueue(null);

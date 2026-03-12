@@ -1,61 +1,19 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-const CART_STORAGE_KEY = "shopping_cart";
-
-function readCartItemsFromStorage() {
-  try {
-    const rawValue = localStorage.getItem(CART_STORAGE_KEY);
-    const parsedValue = rawValue ? JSON.parse(rawValue) : [];
-
-    if (!Array.isArray(parsedValue)) {
-      return [];
-    }
-
-    return parsedValue
-      .map((item) => ({
-        productId: String(item?.productId || item?.id || "").trim(),
-        name: String(item?.name || "").trim(),
-        price: Number(item?.price || 0),
-        imageUrl: typeof item?.imageUrl === "string" ? item.imageUrl.trim() : "",
-        stock: Number(item?.stock || 0),
-        stockStatus: String(item?.stockStatus || "").trim(),
-        quantity: Math.max(Number(item?.quantity || 1), 1),
-      }))
-      .filter((item) => item.productId && item.name);
-  } catch {
-    return [];
-  }
-}
-
-function writeCartItemsToStorage(items) {
-  localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
-}
-
-function normalizeCartItem(payload = {}) {
-  return {
-    productId: String(payload?.productId || payload?.id || "").trim(),
-    name: String(payload?.name || "").trim(),
-    price: Number(payload?.price || 0),
-    imageUrl: typeof payload?.imageUrl === "string" ? payload.imageUrl.trim() : "",
-    stock: Number(payload?.stock || 0),
-    stockStatus: String(payload?.stockStatus || "").trim(),
-    quantity: Math.max(Number(payload?.quantity || 1), 1),
-  };
-}
-
-function getNextQuantity(currentQuantity, addedQuantity, stock) {
-  const nextQuantity = currentQuantity + addedQuantity;
-
-  if (stock > 0) {
-    return Math.min(nextQuantity, stock);
-  }
-
-  return nextQuantity;
-}
+import {
+  getNextQuantity,
+  normalizeCartItem,
+  readCartItemsFromStorage,
+  writeCartItemsToStorage,
+} from "@/features/cart/cartStorage";
 
 const initialState = {
   items: readCartItemsFromStorage(),
 };
+
+function syncCartItemsForCurrentUser(state) {
+  state.items = readCartItemsFromStorage();
+}
 
 export const cartSlice = createSlice({
   name: "cart",
@@ -145,6 +103,10 @@ export const cartSlice = createSlice({
       state.items = [];
       writeCartItemsToStorage(state.items);
     },
+    syncCartStorageByCurrentUser: (state) => {
+      // Mỗi khi login/logout/đổi user thì nạp lại đúng giỏ hàng theo user hiện tại thay vì giữ state của account trước.
+      syncCartItemsForCurrentUser(state);
+    },
   },
 });
 
@@ -155,6 +117,7 @@ export const {
   decrementCartItem,
   removeFromCart,
   clearCart,
+  syncCartStorageByCurrentUser,
 } = cartSlice.actions;
 export const { reducerPath } = cartSlice;
 export default cartSlice.reducer;

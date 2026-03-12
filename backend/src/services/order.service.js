@@ -48,7 +48,6 @@ class OrderService {
 
     return normalizedEmail;
   }
-
   normalizeProductId(productId) {
     if (productId == null || String(productId).trim() === "") {
       throw new Error("Mã sản phẩm không hợp lệ");
@@ -124,7 +123,9 @@ class OrderService {
 
   normalizeShippingAddress(shippingAddress = {}) {
     const source =
-      shippingAddress && typeof shippingAddress === "object" ? shippingAddress : {};
+      shippingAddress && typeof shippingAddress === "object"
+        ? shippingAddress
+        : {};
 
     return {
       city: this.normalizeText(source.city, "Tỉnh/thành phố", {
@@ -193,6 +194,7 @@ class OrderService {
       paymentStatus: order.paymentStatus,
       paymentMethod: order.paymentMethod,
       paymentMethodLabel: this.getPaymentMethodLabel(order.paymentMethod),
+      paymentConfirmedAt: order.paymentConfirmedAt,
       paymentReference: order.paymentReference,
       subtotal: Number(order.subtotal || 0),
       shippingFee: Number(order.shippingFee || 0),
@@ -223,7 +225,9 @@ class OrderService {
 
   async createOrder(userId, payload = {}) {
     const normalizedPayload = this.buildCreateOrderPayload(payload);
-    const touchedProductIds = normalizedPayload.items.map((item) => item.productId);
+    const touchedProductIds = normalizedPayload.items.map(
+      (item) => item.productId,
+    );
     let updatedOrder = null;
 
     // Dùng transaction để việc trừ tồn kho và tạo order luôn thành công hoặc rollback cùng nhau.
@@ -270,8 +274,11 @@ class OrderService {
         };
       });
 
-      const sortedOrderItems = [...normalizedOrderItems].sort((firstItem, secondItem) =>
-        firstItem.productId.toString().localeCompare(secondItem.productId.toString()),
+      const sortedOrderItems = [...normalizedOrderItems].sort(
+        (firstItem, secondItem) =>
+          firstItem.productId
+            .toString()
+            .localeCompare(secondItem.productId.toString()),
       );
 
       for (const item of sortedOrderItems) {

@@ -9,14 +9,17 @@ import Login from "@/pages/Auth/LoginForm/login";
 import Register from "@/pages/Auth/RegisterForm/register";
 import ResetPassword from "@/pages/Auth/ResetForm/ResetPassword";
 import ForgotPassword from "@/pages/Auth/ForgotForm/ForgotPassword";
+import GoogleCallback from "@/pages/Auth/GoogleCallback";
 import Home from "@/pages/Home";
 import ServicePage from "@/pages/ServicePage";
 import ProductPage from "@/pages/ProductPage";
 import ProductDetailPage from "@/pages/ProductPage/ProductDetail";
+import FavoritePage from "@/pages/FavoritePage";
 import ShoppingCartPage from "@/pages/ShoppingCart";
 import PaymentPage from "@/pages/PaymentPage";
 import PaymentSuccessPage from "@/pages/PaymentSuccessPage";
 import NewsPage from "@/pages/NewsPage";
+import NewsPageDetails from "@/pages/NewsPage/NewsPageDetails";
 import StoresPage from "@/pages/StoresPage";
 import ContactPage from "@/pages/ContactPage";
 import BookingHairPage from "@/pages/BookingHair";
@@ -29,6 +32,7 @@ import CustomerManagerPage from "@/pages/Admin/CustomerManager";
 import ServiceManagerPage from "@/pages/Admin/ServiceManager";
 import AdminNewsManagerPage from "@/pages/Admin/AdminNewsManager";
 import AdminOrderManagerPage from "@/pages/Admin/AdminOrderManager";
+import RevenuePageManager from "@/pages/Admin/RevenuePageManager";
 
 function AppRoutes() {
   return (
@@ -38,10 +42,12 @@ function AppRoutes() {
         <Route path="/service" element={<ServicePage />} />
         <Route path="/product" element={<ProductPage />} />
         <Route path="/product/:productId" element={<ProductDetailPage />} />
+        <Route path="/favorite" element={<FavoritePage />} />
         <Route path="/cart" element={<ShoppingCartPage />} />
         <Route path="/payment" element={<PaymentPage />} />
         <Route path="/payment/success" element={<PaymentSuccessPage />} />
         <Route path="/news" element={<NewsPage />} />
+        <Route path="/news/:slug" element={<NewsPageDetails />} />
         <Route path="/stores" element={<StoresPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/booking" element={<BookingHairPage />} />
@@ -56,6 +62,7 @@ function AppRoutes() {
           <Route path="news" element={<AdminNewsManagerPage />} />
           <Route path="products" element={<ProductManagerPage />} />
           <Route path="orders" element={<AdminOrderManagerPage />} />
+          <Route path="revenue" element={<RevenuePageManager />} />
           <Route path="customers" element={<CustomerManagerPage />} />
         </Route>
       </Route>
@@ -64,9 +71,9 @@ function AppRoutes() {
         <Route path="/auth/register" element={<Register />} />
         <Route path="/auth/forgot-password" element={<ForgotPassword />} />
         <Route path="/auth/reset-password" element={<ResetPassword />} />
+        <Route path="/auth/google/callback" element={<GoogleCallback />} />
       </Route>
     </Routes>
   );
 }
 export default AppRoutes;
-

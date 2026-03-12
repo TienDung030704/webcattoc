@@ -13,6 +13,7 @@ const ORDER_STATUS_TRANSITIONS = {
   COMPLETED: [],
   CANCELED: [],
 };
+const ORDER_PAYMENT_METHODS = ["BANK_TRANSFER", "COD"];
 
 class AdminOrderService {
   mapOrderListItem(order) {
@@ -26,6 +27,7 @@ class AdminOrderService {
       status: order.status,
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
+      paymentConfirmedAt: order.paymentConfirmedAt,
       total: Number(order.total || 0),
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
@@ -41,6 +43,7 @@ class AdminOrderService {
       status: order.status,
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
+      paymentConfirmedAt: order.paymentConfirmedAt,
       paymentReference: order.paymentReference,
       subtotal: Number(order.subtotal || 0),
       shippingFee: Number(order.shippingFee || 0),
@@ -132,6 +135,18 @@ class AdminOrderService {
     }
 
     return normalizedStatus;
+  }
+
+  normalizePaymentMethod(paymentMethod) {
+    const normalizedPaymentMethod = String(paymentMethod || "")
+      .trim()
+      .toUpperCase();
+
+    if (!ORDER_PAYMENT_METHODS.includes(normalizedPaymentMethod)) {
+      throw new Error("Phương thức thanh toán không hợp lệ");
+    }
+
+    return normalizedPaymentMethod;
   }
 
   async getOrderByIdOrThrow(orderId, executor = prisma) {
@@ -281,6 +296,62 @@ class AdminOrderService {
           },
         },
       });
+    });
+
+    return this.mapOrderDetail(updatedOrder);
+  }
+
+  async confirmOrderPayment(orderId, payload = {}) {
+    const order = await prisma.order.findUnique({
+      where: {
+        id: orderId,
+      },
+      include: {
+        items: {
+          orderBy: {
+            id: "asc",
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new Error("Không tìm thấy đơn hàng");
+    }
+
+    if (order.status === "CANCELED") {
+      throw new Error("Không thể xác nhận thanh toán cho đơn đã hủy");
+    }
+
+    // Chỉ ghi nhận doanh thu đơn hàng sau khi đơn đã hoàn tất để không cộng tiền sớm.
+    if (order.status !== "COMPLETED") {
+      throw new Error("Chỉ có thể xác nhận thanh toán khi đơn hàng đã hoàn thành");
+    }
+
+    if (order.paymentStatus === "PAID") {
+      throw new Error("Đơn hàng này đã được thanh toán trước đó");
+    }
+
+    const paymentMethod = this.normalizePaymentMethod(
+      payload.paymentMethod || order.paymentMethod,
+    );
+
+    const updatedOrder = await prisma.order.update({
+      where: {
+        id: orderId,
+      },
+      data: {
+        paymentMethod,
+        paymentStatus: "PAID",
+        paymentConfirmedAt: new Date(),
+      },
+      include: {
+        items: {
+          orderBy: {
+            id: "asc",
+          },
+        },
+      },
     });
 
     return this.mapOrderDetail(updatedOrder);

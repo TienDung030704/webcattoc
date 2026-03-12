@@ -176,9 +176,9 @@ function ServicePage() {
                     />
 
                     <div className="absolute inset-x-[10%] top-[11.5%] bottom-[10.5%] flex flex-col items-center px-4 text-center md:inset-x-[9.5%] md:top-[11%] md:bottom-[10%] md:px-7">
-                      <div className="mt-14 md:mt-16">
+                      <div className="mt-10 md:mt-12">
                         <h2
-                          className="text-[16px] leading-tight font-black text-[#f4eee4] uppercase md:text-[20px]"
+                          className="mx-auto max-w-[240px] text-center text-[16px] leading-tight font-black text-[#f4eee4] uppercase md:max-w-[300px] md:text-[20px]"
                           style={{ textShadow: "2px 2px 0 #b81212" }}
                         >
                           {board.title}

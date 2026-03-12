@@ -4,6 +4,8 @@ require("./polyfill");
 
 const express = require("express");
 const cors = require("cors");
+const passport = require("passport");
+const cookieParser = require("cookie-parser");
 
 const rootRouter = require("@/routes");
 const responseHandle = require("@/middleware/responseHandle");
@@ -13,8 +15,15 @@ const app = express();
 const port = 3000;
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true,
+  }),
+);
 app.use(express.json());
+app.use(cookieParser());
+app.use(passport.initialize());
 app.use("/uploads", express.static("uploads"));
 app.use(responseHandle);
 

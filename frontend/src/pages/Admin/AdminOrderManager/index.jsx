@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  CheckCircle2,
   ChevronRight,
   Eye,
   LoaderCircle,
@@ -28,7 +29,6 @@ const STATUS_OPTIONS = [
   { label: "Hoàn thành", value: "COMPLETED" },
   { label: "Đã hủy", value: "CANCELED" },
 ];
-
 const STATUS_TRANSITIONS = {
   PENDING_CONFIRMATION: ["CONFIRMED", "CANCELED"],
   CONFIRMED: ["COMPLETED", "CANCELED"],
@@ -43,7 +43,6 @@ const INITIAL_SUMMARY = {
   completedOrders: 0,
   canceledOrders: 0,
 };
-
 const INITIAL_PAGINATION = {
   page: 1,
   limit: 8,
@@ -97,6 +96,7 @@ function AdminOrderManagerPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [updatingId, setUpdatingId] = useState("");
+  const [payingId, setPayingId] = useState("");
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [detailOrder, setDetailOrder] = useState(null);
   const [detailLoadingId, setDetailLoadingId] = useState("");
@@ -139,7 +139,9 @@ function AdminOrderManagerPage() {
         ...INITIAL_PAGINATION,
         limit: filters.limit,
       });
-      setErrorMessage(error?.response?.data?.error || "Không thể tải danh sách đơn hàng.");
+      setErrorMessage(
+        error?.response?.data?.error || "Không thể tải danh sách đơn hàng.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -173,9 +175,12 @@ function AdminOrderManagerPage() {
       setDetailOrder(response?.data || null);
       setIsDetailOpen(true);
     } catch (error) {
-      toast.error(error?.response?.data?.error || "Không thể tải chi tiết đơn hàng.", {
-        position: "top-right",
-      });
+      toast.error(
+        error?.response?.data?.error || "Không thể tải chi tiết đơn hàng.",
+        {
+          position: "top-right",
+        },
+      );
     } finally {
       setDetailLoadingId("");
     }
@@ -199,6 +204,10 @@ function AdminOrderManagerPage() {
                 ...item,
                 status: updatedOrder?.status || nextStatus,
                 updatedAt: updatedOrder?.updatedAt || item.updatedAt,
+                paymentStatus:
+                  updatedOrder?.paymentStatus || item.paymentStatus,
+                paymentConfirmedAt:
+                  updatedOrder?.paymentConfirmedAt || item.paymentConfirmedAt,
               }
             : item,
         ),
@@ -215,11 +224,63 @@ function AdminOrderManagerPage() {
         position: "top-right",
       });
     } catch (error) {
-      toast.error(error?.response?.data?.error || "Không thể cập nhật trạng thái đơn hàng.", {
-        position: "top-right",
-      });
+      toast.error(
+        error?.response?.data?.error ||
+          "Không thể cập nhật trạng thái đơn hàng.",
+        {
+          position: "top-right",
+        },
+      );
     } finally {
       setUpdatingId("");
+    }
+  };
+
+  const handleConfirmPayment = async (orderId, paymentMethod = "COD") => {
+    setPayingId(String(orderId));
+
+    try {
+      const response = await http.patch(`admin/orders/${orderId}/payment`, {
+        paymentMethod,
+      });
+      const updatedOrder = response?.data;
+
+      setOrders((prev) =>
+        prev.map((item) =>
+          String(item.id) === String(orderId)
+            ? {
+                ...item,
+                paymentMethod:
+                  updatedOrder?.paymentMethod || item.paymentMethod,
+                paymentStatus:
+                  updatedOrder?.paymentStatus || item.paymentStatus,
+                paymentConfirmedAt:
+                  updatedOrder?.paymentConfirmedAt || item.paymentConfirmedAt,
+                updatedAt: updatedOrder?.updatedAt || item.updatedAt,
+              }
+            : item,
+        ),
+      );
+
+      if (detailOrder && String(detailOrder.id) === String(orderId)) {
+        setDetailOrder(updatedOrder);
+      }
+
+      await fetchOrders();
+
+      toast.success("Đã xác nhận thanh toán đơn hàng", {
+        position: "top-right",
+      });
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.error ||
+          "Không thể xác nhận thanh toán đơn hàng.",
+        {
+          position: "top-right",
+        },
+      );
+    } finally {
+      setPayingId("");
     }
   };
 
@@ -228,15 +289,16 @@ function AdminOrderManagerPage() {
       <div className="admin-card-reveal rounded-2xl border border-[#5a3e1d] bg-[#120d09]/82 p-4 shadow-[0_20px_80px_rgba(0,0,0,0.45)] md:p-5">
         <div className="flex flex-col gap-3 border-b border-white/10 pb-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.25em] text-[#e3b76a]">
+            <p className="text-sm font-medium tracking-[0.25em] text-[#e3b76a] uppercase">
               Order Manager
             </p>
             <h1 className="mt-2 text-2xl font-black text-[#f6e7c7] md:text-3xl">
               Quản lý đơn hàng
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-white/60">
-              Theo dõi danh sách đơn hàng thật từ hệ thống, xem nhanh trạng thái xử lý
-              và cập nhật luồng giao hàng trực tiếp trong khu vực quản trị.
+              Theo dõi danh sách đơn hàng thật từ hệ thống, xem nhanh trạng thái
+              xử lý, xác nhận đã thu tiền và cập nhật luồng giao hàng trực tiếp
+              trong khu vực quản trị.
             </p>
           </div>
 
@@ -249,7 +311,9 @@ function AdminOrderManagerPage() {
         <section className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <div className="rounded-2xl border border-[#6b491f] bg-[#1b130d] p-4">
             <p className="text-sm text-white/50">Tổng đơn hàng</p>
-            <p className="mt-2 text-3xl font-black text-[#f6e7c7]">{summary.totalOrders}</p>
+            <p className="mt-2 text-3xl font-black text-[#f6e7c7]">
+              {summary.totalOrders}
+            </p>
           </div>
           <div className="rounded-2xl border border-[#6b491f] bg-[#1b130d] p-4">
             <p className="text-sm text-white/50">Chờ xác nhận</p>
@@ -259,43 +323,57 @@ function AdminOrderManagerPage() {
           </div>
           <div className="rounded-2xl border border-[#6b491f] bg-[#1b130d] p-4">
             <p className="text-sm text-white/50">Đã xác nhận</p>
-            <p className="mt-2 text-3xl font-black text-[#f6e7c7]">{summary.confirmedOrders}</p>
+            <p className="mt-2 text-3xl font-black text-[#f6e7c7]">
+              {summary.confirmedOrders}
+            </p>
           </div>
           <div className="rounded-2xl border border-[#6b491f] bg-[#1b130d] p-4">
             <p className="text-sm text-white/50">Hoàn thành</p>
-            <p className="mt-2 text-3xl font-black text-[#f6e7c7]">{summary.completedOrders}</p>
+            <p className="mt-2 text-3xl font-black text-[#f6e7c7]">
+              {summary.completedOrders}
+            </p>
           </div>
           <div className="rounded-2xl border border-[#6b491f] bg-[#1b130d] p-4">
             <p className="text-sm text-white/50">Đã hủy</p>
-            <p className="mt-2 text-3xl font-black text-[#f6e7c7]">{summary.canceledOrders}</p>
+            <p className="mt-2 text-3xl font-black text-[#f6e7c7]">
+              {summary.canceledOrders}
+            </p>
           </div>
         </section>
 
         <section className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_220px]">
           <label className="rounded-xl border border-white/10 bg-[#100b08]/95 px-3 py-2 text-sm text-white/70">
-            <span className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/45">
+            <span className="mb-2 flex items-center gap-2 text-xs font-semibold tracking-wide text-white/45 uppercase">
               <Search className="h-4 w-4" />
               Tìm kiếm đơn hàng
             </span>
             <input
               value={filters.search}
-              onChange={(event) => handleFilterChange("search", event.target.value)}
+              onChange={(event) =>
+                handleFilterChange("search", event.target.value)
+              }
               placeholder="Mã đơn, tên khách, email, số điện thoại"
               className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/25"
             />
           </label>
 
           <label className="rounded-xl border border-white/10 bg-[#100b08]/95 px-3 py-2 text-sm text-white/70">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-white/45">
+            <span className="mb-2 block text-xs font-semibold tracking-wide text-white/45 uppercase">
               Trạng thái
             </span>
             <select
               value={filters.status}
-              onChange={(event) => handleFilterChange("status", event.target.value)}
+              onChange={(event) =>
+                handleFilterChange("status", event.target.value)
+              }
               className="w-full bg-transparent text-sm text-white outline-none"
             >
               {STATUS_OPTIONS.map((option) => (
-                <option key={option.value || "all-status"} value={option.value} className="bg-[#120d09]">
+                <option
+                  key={option.value || "all-status"}
+                  value={option.value}
+                  className="bg-[#120d09]"
+                >
                   {option.label}
                 </option>
               ))}
@@ -328,7 +406,10 @@ function AdminOrderManagerPage() {
               <tbody className="text-white/85">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-10 text-center text-white/60">
+                    <td
+                      colSpan={9}
+                      className="px-4 py-10 text-center text-white/60"
+                    >
                       <span className="inline-flex items-center gap-2">
                         <LoaderCircle className="h-4 w-4 animate-spin" />
                         Đang tải danh sách đơn hàng...
@@ -339,28 +420,48 @@ function AdminOrderManagerPage() {
                   orders.map((item) => {
                     const nextStatuses = STATUS_TRANSITIONS[item.status] || [];
                     const isUpdating = updatingId === String(item.id);
+                    const isPaying = payingId === String(item.id);
                     const isLoadingDetail = detailLoadingId === String(item.id);
+                    const isPaid = item.paymentStatus === "PAID";
+                    const canConfirmPayment =
+                      item.status === "COMPLETED" && !isPaid;
 
                     return (
-                      <tr key={String(item.id)} className="border-b border-white/5 last:border-b-0">
+                      <tr
+                        key={String(item.id)}
+                        className="border-b border-white/5 last:border-b-0"
+                      >
                         <td className="px-4 py-3 font-semibold text-[#e8cf9d]">
                           <div>
                             <p className="break-all">{item.orderCode}</p>
-                            <p className="mt-1 text-xs text-white/40">#{item.id}</p>
+                            <p className="mt-1 text-xs text-white/40">
+                              #{item.id}
+                            </p>
                           </div>
                         </td>
                         <td className="px-4 py-3">
                           <div>
-                            <p className="font-semibold text-white">{item.customerName}</p>
-                            <p className="mt-1 text-xs text-white/45">{item.customerEmail}</p>
+                            <p className="font-semibold text-white">
+                              {item.customerName}
+                            </p>
+                            <p className="mt-1 text-xs text-white/45">
+                              {item.customerEmail}
+                            </p>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-white/70">{item.customerPhone}</td>
+                        <td className="px-4 py-3 text-white/70">
+                          {item.customerPhone}
+                        </td>
                         <td className="px-4 py-3">
                           <div>
                             <p>{mapPaymentMethod(item.paymentMethod)}</p>
                             <p className="mt-1 text-xs text-white/45">
                               {mapPaymentStatus(item.paymentStatus)}
+                            </p>
+                            <p className="mt-1 text-xs text-white/35">
+                              {item.paymentConfirmedAt
+                                ? `Xác nhận: ${formatDateTime(item.paymentConfirmedAt)}`
+                                : "Chưa xác nhận thu tiền"}
                             </p>
                           </div>
                         </td>
@@ -373,7 +474,9 @@ function AdminOrderManagerPage() {
                             {mapOrderStatus(item.status)}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-white/65">{formatDateTime(item.createdAt)}</td>
+                        <td className="px-4 py-3 text-white/65">
+                          {formatDateTime(item.createdAt)}
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <Button
@@ -389,6 +492,43 @@ function AdminOrderManagerPage() {
                               )}
                               Chi tiết
                             </Button>
+
+                            {canConfirmPayment ? (
+                              <div className="flex items-center gap-2">
+                                <select
+                                  defaultValue=""
+                                  disabled={isPaying}
+                                  onChange={(event) => {
+                                    const value = event.target.value;
+                                    event.target.value = "";
+                                    if (!value) return;
+                                    handleConfirmPayment(item.id, value);
+                                  }}
+                                  className="rounded-lg border border-white/10 bg-[#17100b] px-3 py-2 text-xs text-white outline-none"
+                                >
+                                  <option value="" className="bg-[#120d09]">
+                                    Xác nhận thanh toán
+                                  </option>
+                                  <option value="COD" className="bg-[#120d09]">
+                                    Tiền mặt
+                                  </option>
+                                  <option
+                                    value="BANK_TRANSFER"
+                                    className="bg-[#120d09]"
+                                  >
+                                    Chuyển khoản
+                                  </option>
+                                </select>
+                                {isPaying ? (
+                                  <LoaderCircle className="h-4 w-4 animate-spin text-[#e8cf9d]" />
+                                ) : null}
+                              </div>
+                            ) : isPaid ? (
+                              <span className="inline-flex items-center gap-1 text-xs text-emerald-300">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Đã thu tiền
+                              </span>
+                            ) : null}
 
                             {nextStatuses.length > 0 ? (
                               <div className="flex items-center gap-2">
@@ -406,7 +546,11 @@ function AdminOrderManagerPage() {
                                     Cập nhật trạng thái
                                   </option>
                                   {nextStatuses.map((status) => (
-                                    <option key={status} value={status} className="bg-[#120d09]">
+                                    <option
+                                      key={status}
+                                      value={status}
+                                      className="bg-[#120d09]"
+                                    >
                                       {mapOrderStatus(status)}
                                     </option>
                                   ))}
@@ -415,9 +559,11 @@ function AdminOrderManagerPage() {
                                   <LoaderCircle className="h-4 w-4 animate-spin text-[#e8cf9d]" />
                                 ) : null}
                               </div>
-                            ) : (
-                              <span className="text-xs text-white/40">Đã khóa luồng</span>
-                            )}
+                            ) : !isPaid ? (
+                              <span className="text-xs text-white/40">
+                                Đã khóa luồng
+                              </span>
+                            ) : null}
                           </div>
                         </td>
                       </tr>
@@ -425,7 +571,10 @@ function AdminOrderManagerPage() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={9} className="px-4 py-10 text-center text-white/55">
+                    <td
+                      colSpan={9}
+                      className="px-4 py-10 text-center text-white/55"
+                    >
                       Không có đơn hàng nào phù hợp với bộ lọc hiện tại.
                     </td>
                   </tr>
@@ -437,7 +586,8 @@ function AdminOrderManagerPage() {
 
         <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <p className="text-sm text-white/55">
-            Trang {pagination.page} / {pagination.totalPages} • Hiển thị {orders.length} đơn hàng
+            Trang {pagination.page} / {pagination.totalPages} • Hiển thị{" "}
+            {orders.length} đơn hàng
           </p>
 
           <div className="flex items-center gap-2">
@@ -471,13 +621,14 @@ function AdminOrderManagerPage() {
           }
         }}
       >
-        <DialogContent
-          className="max-h-[90vh] overflow-y-auto border-[#5a3e1d] bg-[#120d09] text-white sm:max-w-4xl"
-        >
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-[#5a3e1d] bg-[#120d09] text-white sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle className="text-[#f6e7c7]">Chi tiết đơn hàng</DialogTitle>
+            <DialogTitle className="text-[#f6e7c7]">
+              Chi tiết đơn hàng
+            </DialogTitle>
             <DialogDescription className="text-white/55">
-              Xem nhanh thông tin người nhận, địa chỉ giao hàng và các sản phẩm trong đơn.
+              Xem nhanh thông tin người nhận, địa chỉ giao hàng và các sản phẩm
+              trong đơn.
             </DialogDescription>
           </DialogHeader>
 
@@ -486,11 +637,15 @@ function AdminOrderManagerPage() {
               <div className="grid gap-4 md:grid-cols-4">
                 <div className="rounded-2xl border border-[#6b491f] bg-[#1b130d] p-4">
                   <p className="text-sm text-white/50">Mã đơn</p>
-                  <p className="mt-2 break-all font-semibold text-[#f6e7c7]">{detailOrder.orderCode}</p>
+                  <p className="mt-2 font-semibold break-all text-[#f6e7c7]">
+                    {detailOrder.orderCode}
+                  </p>
                 </div>
                 <div className="rounded-2xl border border-[#6b491f] bg-[#1b130d] p-4">
                   <p className="text-sm text-white/50">Trạng thái</p>
-                  <p className="mt-2 font-semibold text-[#f6e7c7]">{mapOrderStatus(detailOrder.status)}</p>
+                  <p className="mt-2 font-semibold text-[#f6e7c7]">
+                    {mapOrderStatus(detailOrder.status)}
+                  </p>
                 </div>
                 <div className="rounded-2xl border border-[#6b491f] bg-[#1b130d] p-4">
                   <p className="text-sm text-white/50">Thanh toán</p>
@@ -499,6 +654,11 @@ function AdminOrderManagerPage() {
                   </p>
                   <p className="mt-1 text-xs text-white/45">
                     {mapPaymentStatus(detailOrder.paymentStatus)}
+                  </p>
+                  <p className="mt-1 text-xs text-white/35">
+                    {detailOrder.paymentConfirmedAt
+                      ? `Xác nhận: ${formatDateTime(detailOrder.paymentConfirmedAt)}`
+                      : "Chưa xác nhận thu tiền"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-[#6b491f] bg-[#1b130d] p-4">
@@ -513,17 +673,22 @@ function AdminOrderManagerPage() {
                 <section className="rounded-2xl border border-[#5a3e1d] bg-[#100b08]/95 p-5">
                   <div className="flex items-center gap-2 text-[#f6e7c7]">
                     <UserRound className="h-4 w-4" />
-                    <h2 className="text-base font-semibold">Thông tin người nhận</h2>
+                    <h2 className="text-base font-semibold">
+                      Thông tin người nhận
+                    </h2>
                   </div>
                   <div className="mt-4 space-y-2 text-sm text-white/75">
                     <p>
-                      <span className="text-white/45">Họ tên:</span> {detailOrder.customer?.fullName}
+                      <span className="text-white/45">Họ tên:</span>{" "}
+                      {detailOrder.customer?.fullName}
                     </p>
                     <p>
-                      <span className="text-white/45">Số điện thoại:</span> {detailOrder.customer?.phone}
+                      <span className="text-white/45">Số điện thoại:</span>{" "}
+                      {detailOrder.customer?.phone}
                     </p>
                     <p>
-                      <span className="text-white/45">Email:</span> {detailOrder.customer?.email}
+                      <span className="text-white/45">Email:</span>{" "}
+                      {detailOrder.customer?.email}
                     </p>
                   </div>
                 </section>
@@ -531,16 +696,21 @@ function AdminOrderManagerPage() {
                 <section className="rounded-2xl border border-[#5a3e1d] bg-[#100b08]/95 p-5">
                   <div className="flex items-center gap-2 text-[#f6e7c7]">
                     <ChevronRight className="h-4 w-4" />
-                    <h2 className="text-base font-semibold">Địa chỉ giao hàng</h2>
+                    <h2 className="text-base font-semibold">
+                      Địa chỉ giao hàng
+                    </h2>
                   </div>
                   <div className="mt-4 space-y-2 text-sm text-white/75">
                     <p>{detailOrder.shippingAddress?.address}</p>
                     <p>
-                      {detailOrder.shippingAddress?.ward}, {detailOrder.shippingAddress?.district}
+                      {detailOrder.shippingAddress?.ward},{" "}
+                      {detailOrder.shippingAddress?.district}
                     </p>
                     <p>{detailOrder.shippingAddress?.city}</p>
                     {detailOrder.note ? (
-                      <p className="pt-2 text-white/60">Ghi chú: {detailOrder.note}</p>
+                      <p className="pt-2 text-white/60">
+                        Ghi chú: {detailOrder.note}
+                      </p>
                     ) : null}
                   </div>
                 </section>
@@ -550,7 +720,9 @@ function AdminOrderManagerPage() {
                 <div className="border-b border-white/10 px-5 py-4">
                   <div className="flex items-center gap-2 text-[#f6e7c7]">
                     <ShoppingBag className="h-4 w-4" />
-                    <h2 className="text-base font-semibold">Sản phẩm trong đơn</h2>
+                    <h2 className="text-base font-semibold">
+                      Sản phẩm trong đơn
+                    </h2>
                   </div>
                 </div>
 
@@ -567,7 +739,10 @@ function AdminOrderManagerPage() {
                     </thead>
                     <tbody className="text-white/85">
                       {detailOrder.items?.map((item) => (
-                        <tr key={item.id} className="border-b border-white/5 last:border-b-0">
+                        <tr
+                          key={item.id}
+                          className="border-b border-white/5 last:border-b-0"
+                        >
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
                               <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-white p-1.5">
@@ -577,11 +752,17 @@ function AdminOrderManagerPage() {
                                   className="h-full w-full object-contain"
                                 />
                               </div>
-                              <span className="font-semibold text-white">{item.name}</span>
+                              <span className="font-semibold text-white">
+                                {item.name}
+                              </span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-white/60">#{item.productId}</td>
-                          <td className="px-4 py-3">{formatCurrency(item.unitPrice)}</td>
+                          <td className="px-4 py-3 text-white/60">
+                            #{item.productId}
+                          </td>
+                          <td className="px-4 py-3">
+                            {formatCurrency(item.unitPrice)}
+                          </td>
                           <td className="px-4 py-3">{item.quantity}</td>
                           <td className="px-4 py-3 font-semibold text-[#f6e7c7]">
                             {formatCurrency(item.lineTotal)}

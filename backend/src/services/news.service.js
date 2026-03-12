@@ -193,7 +193,7 @@ class NewsService {
     throw new Error("Trạng thái hiển thị bài viết không hợp lệ");
   }
 
-  getPublicNewsSelect() {
+  getPublicNewsListSelect() {
     return {
       id: true,
       title: true,
@@ -206,9 +206,21 @@ class NewsService {
     };
   }
 
+  getPublicNewsDetailSelect() {
+    return {
+      id: true,
+      title: true,
+      slug: true,
+      content: true,
+      thumbnail: true,
+      createdAt: true,
+      updatedAt: true,
+    };
+  }
+
   getAdminNewsSelect() {
     return {
-      ...this.getPublicNewsSelect(),
+      ...this.getPublicNewsListSelect(),
       isPublished: true,
     };
   }
@@ -233,7 +245,6 @@ class NewsService {
       id: item.id,
       title: item.title,
       slug: item.slug,
-      summary: item.summary,
       content: item.content,
       thumbnail: item.thumbnail,
       image: item.thumbnail,
@@ -434,7 +445,7 @@ class NewsService {
         },
         skip,
         take: limit,
-        select: this.getPublicNewsSelect(),
+        select: this.getPublicNewsListSelect()
       }),
       prisma["new"].count({ where }),
     ]);
@@ -457,7 +468,7 @@ class NewsService {
         slug: normalizedSlug,
         isPublished: true,
       },
-      select: this.getPublicNewsSelect(),
+      select: this.getPublicNewsDetailSelect()
     });
 
     if (!item) {

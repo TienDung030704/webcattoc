@@ -26,7 +26,6 @@ const MONTH_LABELS = [
   "Tháng Mười Hai",
 ];
 const BOOKING_MONTH_SPAN = 12;
-const SLOT_BUFFER_MINUTES = 45;
 const SERVICE_PLACEHOLDER_COUNT = 3;
 const BUSINESS_SLOTS = [
   "09:00",
@@ -95,7 +94,9 @@ function getCalendarDays(visibleMonth) {
   }
 
   for (let dayNumber = 1; dayNumber <= totalDaysInMonth; dayNumber += 1) {
-    days.push(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), dayNumber));
+    days.push(
+      new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), dayNumber),
+    );
   }
 
   while (days.length % 7 !== 0) {
@@ -146,7 +147,11 @@ function getNowMarker() {
 }
 
 function getMaxBookingDate(baseDate) {
-  return new Date(baseDate.getFullYear(), baseDate.getMonth() + BOOKING_MONTH_SPAN, baseDate.getDate());
+  return new Date(
+    baseDate.getFullYear(),
+    baseDate.getMonth() + BOOKING_MONTH_SPAN,
+    baseDate.getDate(),
+  );
 }
 
 function mapBookingServiceOption(service) {
@@ -156,6 +161,16 @@ function mapBookingServiceOption(service) {
     amount: Number(service.price || 0),
     description: service.description,
     category: service.category,
+  };
+}
+
+function mapBookingBranchOption(branch) {
+  return {
+    id: String(branch.id),
+    name: branch.name,
+    city: branch.city,
+    district: branch.district,
+    address: branch.address,
   };
 }
 
@@ -169,7 +184,11 @@ function BookingHairPage() {
     () => new Date(nowMarker.getFullYear(), nowMarker.getMonth(), 1),
   );
   const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedBranchId, setSelectedBranchId] = useState("");
   const [selectedSlot, setSelectedSlot] = useState("");
+  const [branchOptions, setBranchOptions] = useState([]);
+  const [isBranchesLoading, setIsBranchesLoading] = useState(true);
+  const [branchesError, setBranchesError] = useState("");
   const [serviceOptions, setServiceOptions] = useState([]);
   const [isServicesLoading, setIsServicesLoading] = useState(true);
   const [servicesError, setServicesError] = useState("");
@@ -193,8 +212,16 @@ function BookingHairPage() {
   }, []);
 
   useEffect(() => {
-    const firstDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const firstDayOfVisibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1);
+    const firstDayOfCurrentMonth = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      1,
+    );
+    const firstDayOfVisibleMonth = new Date(
+      visibleMonth.getFullYear(),
+      visibleMonth.getMonth(),
+      1,
+    );
     const firstDayOfLastAllowedMonth = new Date(
       maxBookingDate.getFullYear(),
       maxBookingDate.getMonth(),
@@ -212,14 +239,36 @@ function BookingHairPage() {
   }, [maxBookingDate, today, visibleMonth]);
 
   useEffect(() => {
+    const fetchBranches = async () => {
+      setIsBranchesLoading(true);
+      setBranchesError("");
+
+      try {
+        // Lấy danh sách chi nhánh thật để flow booking và trang hệ thống cửa hàng dùng chung một nguồn dữ liệu.
+        const response = await http.get("user/branches");
+        const items = (response?.data?.items || []).map(mapBookingBranchOption);
+        setBranchOptions(items);
+      } catch (error) {
+        setBranchOptions([]);
+        setBranchesError("Không thể tải danh sách chi nhánh lúc này.");
+      } finally {
+        setIsBranchesLoading(false);
+      }
+    };
+
+    fetchBranches();
+  }, []);
+
+  useEffect(() => {
     const fetchServices = async () => {
       setIsServicesLoading(true);
       setServicesError("");
-
       try {
         // Lấy danh sách dịch vụ thật cho booking page để bỏ hoàn toàn quick-select mock data.
         const response = await http.get("user/services");
-        const items = (response?.data?.items || []).map(mapBookingServiceOption);
+        const items = (response?.data?.items || []).map(
+          mapBookingServiceOption,
+        );
         setServiceOptions(items);
       } catch (error) {
         setServiceOptions([]);
@@ -264,36 +313,53 @@ function BookingHairPage() {
     [visibleMonth],
   );
 
-  // Mỗi lần user đổi ngày thì lọc lại các giờ đã qua để chỉ còn slot còn book được.
-  const availableSlots = useMemo(() => {
-    if (!selectedDate) return [];
+  // Với ngày hôm nay, các slot ở thời điểm hiện tại trở về trước vẫn hiển thị nhưng bị khóa để user thấy rõ khung giờ nào đã qua.
+  const disabledSlotSet = useMemo(() => {
+    if (!selectedDate || !isSameDay(selectedDate, nowMarker)) {
+      return new Set();
+    }
 
-    const nowWithBuffer = new Date(
-      Date.now() + SLOT_BUFFER_MINUTES * 60 * 1000,
+    return new Set(
+      BUSINESS_SLOTS.filter((slot) => {
+        const slotDate = buildSlotDate(selectedDate, slot);
+        return slotDate.getTime() <= nowMarker.getTime();
+      }),
     );
+  }, [nowMarker, selectedDate]);
 
-    return BUSINESS_SLOTS.filter(
-      (slot) =>
-        buildSlotDate(selectedDate, slot).getTime() > nowWithBuffer.getTime(),
-    );
-  }, [selectedDate]);
+  const hasSelectableSlots = useMemo(
+    () => BUSINESS_SLOTS.some((slot) => !disabledSlotSet.has(slot)),
+    [disabledSlotSet],
+  );
+
+  const selectedBranch = useMemo(
+    () =>
+      branchOptions.find((branch) => branch.id === selectedBranchId) || null,
+    [branchOptions, selectedBranchId],
+  );
 
   const displayName =
     [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(" ") ||
     currentUser?.username ||
     "Khách hàng";
-  const firstDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const firstDayOfCurrentMonth = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    1,
+  );
   const firstDayOfLastAllowedMonth = new Date(
     maxBookingDate.getFullYear(),
     maxBookingDate.getMonth(),
     1,
   );
   const canGoPrev = visibleMonth.getTime() > firstDayOfCurrentMonth.getTime();
-  const canGoNext = visibleMonth.getTime() < firstDayOfLastAllowedMonth.getTime();
+  const canGoNext =
+    visibleMonth.getTime() < firstDayOfLastAllowedMonth.getTime();
   const canSubmit =
     Boolean(serviceName.trim()) &&
     Number(amount) > 0 &&
     Boolean(selectedDate) &&
+    Boolean(selectedBranchId) &&
     Boolean(selectedSlot) &&
     !isSubmitting;
 
@@ -309,8 +375,29 @@ function BookingHairPage() {
 
     if (isOutOfRange) return;
 
+    // Khi đổi ngày thì reset giờ đã chọn để user chọn lại slot đúng theo ngày mới.
     setSelectedDate(nextDate);
     setSelectedSlot("");
+  };
+
+  const handleSelectBranch = (branchId) => {
+    const nextBranch =
+      branchOptions.find((branch) => branch.id === branchId) || null;
+
+    // Chọn chi nhánh trước rồi mới mở form lịch đặt phía dưới.
+    setSelectedBranchId(branchId);
+    setSelectedDate(null);
+    setSelectedSlot("");
+    setVisibleMonth(new Date(nowMarker.getFullYear(), nowMarker.getMonth(), 1));
+
+    if (nextBranch) {
+      setTimeout(() => {
+        document.getElementById("booking-calendar-section")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 120);
+    }
   };
 
   const handleChangeMonth = (direction) => {
@@ -329,8 +416,22 @@ function BookingHairPage() {
       return;
     }
 
-    if (!selectedDate || !selectedSlot) {
-      toast.error("Vui lòng chọn ngày và khung giờ muốn đặt", {
+    if (!selectedBranchId) {
+      toast.error("Vui lòng chọn chi nhánh muốn cắt", {
+        position: "top-right",
+      });
+      return;
+    }
+
+    if (!selectedDate) {
+      toast.error("Vui lòng chọn ngày muốn đặt", {
+        position: "top-right",
+      });
+      return;
+    }
+
+    if (!selectedSlot) {
+      toast.error("Vui lòng chọn khung giờ muốn đặt", {
         position: "top-right",
       });
       return;
@@ -367,6 +468,7 @@ function BookingHairPage() {
         serviceName: serviceName.trim(),
         appointmentAt,
         amount: Number(amount),
+        branchId: selectedBranchId,
       });
 
       toast.success("Đặt lịch thành công", {
@@ -405,12 +507,6 @@ function BookingHairPage() {
                 className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white"
               >
                 Trang chủ
-              </Link>
-              <Link
-                to="/booking"
-                className="rounded-full bg-[#c8a96e] px-4 py-2 font-semibold text-[#1a130b]"
-              >
-                Đặt lịch
               </Link>
               <Link
                 to="/service"
@@ -493,154 +589,292 @@ function BookingHairPage() {
 
             <div className="space-y-6">
               <section className="rounded-[26px] border border-white/10 bg-[#17100b]/92 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.32)] md:p-8">
-                <div className="flex flex-col gap-4 border-b border-white/10 pb-5 md:flex-row md:items-end md:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold tracking-[0.24em] text-[#c8a96e] uppercase">
-                      Chọn ngày hẹn
-                    </p>
-                    <h2 className="mt-3 text-3xl font-black text-[#f6e7c7] md:text-4xl">
-                      {getMonthLabel(visibleMonth)}
-                    </h2>
-                    <p className="mt-3 max-w-2xl text-sm leading-7 text-white/60">
-                      Bấm vào ngày bạn muốn đến tiệm, bảng khung giờ sẽ hiện ngay bên dưới để bạn chọn giống flow đặt lịch ngoài thực tế.
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => handleChangeMonth(-1)}
-                      disabled={!canGoPrev}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#120d08] text-white transition hover:border-[#c8a96e]/60 hover:text-[#f6e7c7] disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <ChevronLeft className="h-5 w-5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleChangeMonth(1)}
-                      disabled={!canGoNext}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#120d08] text-white transition hover:border-[#c8a96e]/60 hover:text-[#f6e7c7] disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <ChevronRight className="h-5 w-5" />
-                    </button>
-                  </div>
+                <div className="border-b border-white/10 pb-5 text-center">
+                  <p className="text-sm font-semibold tracking-[0.24em] text-[#c8a96e] uppercase">
+                    Bước 1 - Chọn chi nhánh
+                  </p>
+                  <h2 className="mt-3 text-3xl font-black text-[#f6e7c7] md:text-4xl">
+                    Chọn nơi bạn muốn cắt tóc trước
+                  </h2>
+                  <p className="mx-auto mt-3 max-w-3xl text-sm leading-7 text-white/60">
+                    Sau khi chọn chi nhánh, hệ thống mới mở form lịch để bạn
+                    chọn ngày muốn cắt và giờ muốn tới tiệm.
+                  </p>
                 </div>
 
-                <div className="mt-6 grid grid-cols-7 overflow-hidden rounded-[22px] border border-white/10 bg-[#0f0b07]/85">
-                  {WEEKDAY_LABELS.map((label) => (
-                    <div
-                      key={label}
-                      className="border-b border-white/10 bg-[#0c5d87] px-2 py-3 text-center text-sm font-bold text-white"
-                    >
-                      {label}
-                    </div>
-                  ))}
-
-                  {calendarDays.map((day, index) => {
-                    if (!day) {
-                      return (
-                        <div
-                          key={`empty-day-${index}`}
-                          className="min-h-[108px] border-r border-b border-white/10 bg-[#0f0b07]/55 last:border-r-0 md:min-h-[122px]"
-                        />
-                      );
-                    }
-
-                    const isDisabled = day < today || day > maxBookingDate;
-                    const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
-                    const isToday = isSameDay(day, today);
-
-                    return (
-                      <button
-                        key={getDateKey(day)}
-                        type="button"
-                        onClick={() => handleSelectDate(day)}
-                        disabled={isDisabled}
-                        className={`min-h-[108px] border-r border-b border-white/10 px-3 py-4 text-left text-white/80 transition last:border-r-0 md:min-h-[122px] ${
-                          isSelected ? "bg-[#2a2f34]" : "bg-[#12100d]/95 hover:bg-[#1a1511]"
-                        } ${isDisabled ? "cursor-not-allowed opacity-35" : "cursor-pointer"}`}
+                {isBranchesLoading ? (
+                  <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {Array.from({ length: 6 }).map((_, index) => (
+                      <div
+                        key={`branch-skeleton-${index}`}
+                        className="rounded-2xl border border-white/10 bg-[#120d08] p-4"
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-lg font-semibold md:text-2xl">{day.getDate()}</span>
-                          {isToday ? (
-                            <span className="rounded-full border border-[#c8a96e]/50 px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#f6e7c7] uppercase">
-                              Hôm nay
-                            </span>
-                          ) : null}
-                        </div>
+                        <div className="h-5 w-1/2 animate-pulse rounded bg-white/10" />
+                        <div className="mt-3 h-4 w-2/3 animate-pulse rounded bg-white/8" />
+                        <div className="mt-2 h-4 w-full animate-pulse rounded bg-white/8" />
+                      </div>
+                    ))}
+                  </div>
+                ) : branchesError ? (
+                  <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-5 py-4 text-sm text-amber-100">
+                    {branchesError}
+                  </div>
+                ) : branchOptions.length === 0 ? (
+                  <div className="mt-6 rounded-2xl border border-dashed border-white/10 bg-[#0d1215] px-5 py-8 text-center text-white/50">
+                    Hiện chưa có chi nhánh khả dụng để đặt lịch.
+                  </div>
+                ) : (
+                  <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {branchOptions.map((branch) => {
+                      const isSelected = selectedBranchId === branch.id;
 
-                        {isSelected ? (
-                          <span className="mt-8 inline-flex h-11 w-11 items-center justify-center rounded-full border-2 border-[#d11b1b] text-sm font-bold text-[#f6e7c7]">
-                            {day.getDate()}
+                      return (
+                        <button
+                          key={branch.id}
+                          type="button"
+                          onClick={() => handleSelectBranch(branch.id)}
+                          className={`rounded-2xl border p-4 text-left transition ${
+                            isSelected
+                              ? "border-[#c8a96e]/80 bg-[#24170f]"
+                              : "border-white/10 bg-[#120d08] hover:border-[#c8a96e]/45 hover:bg-[#18120d]"
+                          }`}
+                        >
+                          <p className="text-lg font-bold text-[#f6e7c7]">
+                            {branch.name}
+                          </p>
+                          <p className="mt-2 text-sm font-medium text-[#d9c2a0]">
+                            {branch.city}
+                          </p>
+                          <p className="mt-2 text-sm text-white/80">
+                            {branch.address}
+                          </p>
+                          <span
+                            className={`mt-4 inline-flex rounded-xl px-3 py-2 text-xs font-bold uppercase transition ${
+                              isSelected
+                                ? "bg-[#c8a96e] text-[#1a130b]"
+                                : "bg-[#232a31] text-white/75"
+                            }`}
+                          >
+                            {isSelected ? "Đã chọn chi nhánh" : branch.district}
                           </span>
-                        ) : (
-                          <span className="mt-8 block text-xs text-white/35">
-                            {isDisabled ? "Không khả dụng" : "Bấm để xem giờ"}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
 
-                {selectedDate ? (
-                  <div className="booking-slots-reveal mt-6 rounded-[24px] border border-white/10 bg-[#11161a]/95 p-5 md:p-8">
-                    <div className="border-b border-white/10 pb-5 text-center">
+              {selectedBranch ? (
+                <section
+                  id="booking-calendar-section"
+                  className="rounded-[26px] border border-white/10 bg-[#17100b]/92 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.32)] md:p-8"
+                >
+                  <div className="flex flex-col gap-4 border-b border-white/10 pb-5 md:flex-row md:items-end md:justify-between">
+                    <div>
                       <p className="text-sm font-semibold tracking-[0.24em] text-[#c8a96e] uppercase">
-                        Các cuộc hẹn có sẵn trên
+                        Bước 2 - Chọn ngày hẹn
                       </p>
-                      <h2 className="mt-3 text-2xl font-black text-[#f6e7c7] md:text-4xl">
-                        {formatVietnameseDate(selectedDate)}
+                      <h2 className="mt-3 text-3xl font-black text-[#f6e7c7] md:text-4xl">
+                        {getMonthLabel(visibleMonth)}
                       </h2>
+                      <p className="mt-3 max-w-3xl text-sm leading-7 text-white/60">
+                        Bạn đang đặt lịch tại{" "}
+                        <span className="font-semibold text-[#f6e7c7]">
+                          {selectedBranch.name}
+                        </span>
+                        . Bây giờ hãy chọn ngày muốn cắt, sau đó chọn giờ còn
+                        khả dụng theo thời gian thực.
+                      </p>
                     </div>
 
-                    {availableSlots.length === 0 ? (
-                      <div className="mt-6 rounded-2xl border border-dashed border-white/10 bg-[#0d1215] px-5 py-8 text-center text-white/50">
-                        Ngày này hiện không còn khung giờ phù hợp, bạn hãy chọn ngày khác nhé.
-                      </div>
-                    ) : (
-                      <div className="mt-4 divide-y divide-white/10">
-                        {availableSlots.map((slot) => {
-                          const isSelected = selectedSlot === slot;
-
-                          return (
-                            <button
-                              key={slot}
-                              type="button"
-                              onClick={() => setSelectedSlot(slot)}
-                              className={`flex w-full flex-col gap-4 px-4 py-5 text-left transition md:flex-row md:items-center md:justify-between ${
-                                isSelected ? "bg-[#1d2327]" : "hover:bg-white/[0.03]"
-                              }`}
-                            >
-                              <div className="flex items-start gap-3">
-                                <div className="mt-1 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-[#d9c2a0]">
-                                  <Clock3 className="h-4 w-4" />
-                                </div>
-                                <div>
-                                  <p className="text-xl font-bold text-[#d9c2a0]">{getSlotRangeLabel(slot)}</p>
-                                  <p className="mt-1 text-sm tracking-wide text-white/65 uppercase">
-                                    Còn 3 chỗ trống
-                                  </p>
-                                </div>
-                              </div>
-
-                              <span
-                                className={`inline-flex min-w-[132px] items-center justify-center rounded-xl px-4 py-3 text-sm font-bold transition ${
-                                  isSelected
-                                    ? "bg-[#c8a96e] text-[#1a130b]"
-                                    : "bg-[#232a31] text-white/80"
-                                }`}
-                              >
-                                {isSelected ? "Đã chọn" : "Chọn giờ này"}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleChangeMonth(-1)}
+                        disabled={!canGoPrev}
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#120d08] text-white transition hover:border-[#c8a96e]/60 hover:text-[#f6e7c7] disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleChangeMonth(1)}
+                        disabled={!canGoNext}
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#120d08] text-white transition hover:border-[#c8a96e]/60 hover:text-[#f6e7c7] disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                    </div>
                   </div>
-                ) : null}
-              </section>
+
+                  <div className="mt-4 rounded-2xl border border-[#c8a96e]/20 bg-[#120d08] px-4 py-3 text-sm text-[#f5e4c1]">
+                    <span className="font-semibold">Chi nhánh đã chọn:</span>{" "}
+                    {selectedBranch.name} - {selectedBranch.address}
+                  </div>
+
+                  <div className="mt-6 grid grid-cols-7 overflow-hidden rounded-[22px] border border-white/10 bg-[#0f0b07]/85">
+                    {WEEKDAY_LABELS.map((label) => (
+                      <div
+                        key={label}
+                        className="border-b border-white/10 bg-[#0c5d87] px-2 py-3 text-center text-sm font-bold text-white"
+                      >
+                        {label}
+                      </div>
+                    ))}
+
+                    {calendarDays.map((day, index) => {
+                      if (!day) {
+                        return (
+                          <div
+                            key={`empty-day-${index}`}
+                            className="min-h-[108px] border-r border-b border-white/10 bg-[#0f0b07]/55 last:border-r-0 md:min-h-[122px]"
+                          />
+                        );
+                      }
+
+                      const isDisabled = day < today || day > maxBookingDate;
+                      const isSelected = selectedDate
+                        ? isSameDay(day, selectedDate)
+                        : false;
+                      const isToday = isSameDay(day, today);
+
+                      return (
+                        <button
+                          key={getDateKey(day)}
+                          type="button"
+                          onClick={() => handleSelectDate(day)}
+                          disabled={isDisabled}
+                          className={`min-h-[108px] border-r border-b border-white/10 px-3 py-4 text-left text-white/80 transition last:border-r-0 md:min-h-[122px] ${
+                            isSelected
+                              ? "bg-[#2a2f34]"
+                              : "bg-[#12100d]/95 hover:bg-[#1a1511]"
+                          } ${isDisabled ? "cursor-not-allowed opacity-35" : "cursor-pointer"}`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-lg font-semibold md:text-2xl">
+                              {day.getDate()}
+                            </span>
+                            {isToday ? (
+                              <span className="rounded-full border border-[#c8a96e]/50 px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#f6e7c7] uppercase">
+                                Hôm nay
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {isSelected ? (
+                            <span className="mt-8 inline-flex h-11 w-11 items-center justify-center rounded-full border-2 border-[#d11b1b] text-sm font-bold text-[#f6e7c7]">
+                              {day.getDate()}
+                            </span>
+                          ) : (
+                            <span className="mt-8 block text-xs text-white/35">
+                              {isDisabled ? "Không khả dụng" : "Bấm để xem giờ"}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedDate ? (
+                    <div className="booking-slots-reveal mt-6 rounded-[24px] border border-white/10 bg-[#11161a]/95 p-5 md:p-8">
+                      <div className="border-b border-white/10 pb-5 text-center">
+                        <p className="text-sm font-semibold tracking-[0.24em] text-[#c8a96e] uppercase">
+                          Bước 3 - Chọn giờ
+                        </p>
+                        <h2 className="mt-3 text-2xl font-black text-[#f6e7c7] md:text-4xl">
+                          Khung giờ tại {selectedBranch.name}
+                        </h2>
+                        <p className="mt-3 text-sm leading-7 text-white/60">
+                          Bạn đang đặt lịch cho{" "}
+                          {formatVietnameseDate(selectedDate)} tại{" "}
+                          {selectedBranch.address}.
+                        </p>
+                      </div>
+
+                      {!hasSelectableSlots ? (
+                        <div className="mt-6 rounded-2xl border border-dashed border-white/10 bg-[#0d1215] px-5 py-8 text-center text-white/50">
+                          Ngày này hiện không còn khung giờ khả dụng. Với ngày
+                          hôm nay, các khung giờ ở thời điểm hiện tại trở về
+                          trước vẫn hiển thị nhưng sẽ bị khóa theo thời gian
+                          thực.
+                        </div>
+                      ) : (
+                        <div className="mt-4 divide-y divide-white/10">
+                          {BUSINESS_SLOTS.map((slot) => {
+                            const isSelected = selectedSlot === slot;
+                            const isDisabled = disabledSlotSet.has(slot);
+
+                            return (
+                              <button
+                                key={slot}
+                                type="button"
+                                onClick={() => {
+                                  if (isDisabled) {
+                                    return;
+                                  }
+
+                                  setSelectedSlot(slot);
+                                }}
+                                disabled={isDisabled}
+                                className={`flex w-full flex-col gap-4 px-4 py-5 text-left transition md:flex-row md:items-center md:justify-between ${
+                                  isSelected
+                                    ? "bg-[#1d2327]"
+                                    : "hover:bg-white/[0.03]"
+                                } ${isDisabled ? "cursor-not-allowed opacity-40 hover:bg-transparent" : ""}`}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className="mt-1 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-[#d9c2a0]">
+                                    <Clock3 className="h-4 w-4" />
+                                  </div>
+                                  <div>
+                                    <p className="text-xl font-bold text-[#d9c2a0]">
+                                      {getSlotRangeLabel(slot)}
+                                    </p>
+                                    <p className="mt-1 text-sm tracking-wide text-white/65 uppercase">
+                                      {isDisabled
+                                        ? "Đã quá giờ"
+                                        : "Chọn giờ này"}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <span
+                                  className={`inline-flex min-w-[132px] items-center justify-center rounded-xl px-4 py-3 text-sm font-bold transition ${
+                                    isDisabled
+                                      ? "bg-[#1b1f24] text-white/45"
+                                      : isSelected
+                                        ? "bg-[#c8a96e] text-[#1a130b]"
+                                        : "bg-[#232a31] text-white/80"
+                                  }`}
+                                >
+                                  {isDisabled
+                                    ? "Không chọn được"
+                                    : isSelected
+                                      ? "Đã chọn"
+                                      : "Chọn giờ này"}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-6 rounded-2xl border border-dashed border-white/10 bg-[#0d1215] px-5 py-8 text-center text-white/50">
+                      Hãy chọn ngày trước để hệ thống hiển thị các khung giờ còn
+                      đặt được.
+                    </div>
+                  )}
+                </section>
+              ) : (
+                <section
+                  id="booking-calendar-section"
+                  className="rounded-[26px] border border-dashed border-white/10 bg-[#17100b]/70 p-6 text-center text-white/50"
+                >
+                  Hãy chọn chi nhánh trước, sau đó form lịch đặt sẽ xuất hiện ở
+                  đây.
+                </section>
+              )}
             </div>
 
             <form
@@ -662,17 +896,19 @@ function BookingHairPage() {
 
                   <div className="mt-6 grid gap-4 xl:grid-cols-3">
                     {isServicesLoading
-                      ? Array.from({ length: SERVICE_PLACEHOLDER_COUNT }).map((_, index) => (
-                          <div
-                            key={`service-skeleton-${index}`}
-                            className="rounded-2xl border border-white/10 bg-[#120d08] p-4"
-                          >
-                            <div className="h-5 w-2/3 animate-pulse rounded bg-white/10" />
-                            <div className="mt-3 h-4 w-full animate-pulse rounded bg-white/8" />
-                            <div className="mt-2 h-4 w-5/6 animate-pulse rounded bg-white/8" />
-                            <div className="mt-4 h-4 w-24 animate-pulse rounded bg-[#c8a96e]/20" />
-                          </div>
-                        ))
+                      ? Array.from({ length: SERVICE_PLACEHOLDER_COUNT }).map(
+                          (_, index) => (
+                            <div
+                              key={`service-skeleton-${index}`}
+                              className="rounded-2xl border border-white/10 bg-[#120d08] p-4"
+                            >
+                              <div className="h-5 w-2/3 animate-pulse rounded bg-white/10" />
+                              <div className="mt-3 h-4 w-full animate-pulse rounded bg-white/8" />
+                              <div className="mt-2 h-4 w-5/6 animate-pulse rounded bg-white/8" />
+                              <div className="mt-4 h-4 w-24 animate-pulse rounded bg-[#c8a96e]/20" />
+                            </div>
+                          ),
+                        )
                       : serviceOptions.map((service) => {
                           const isActive =
                             serviceName === service.name &&
@@ -693,7 +929,8 @@ function BookingHairPage() {
                                 {service.name}
                               </p>
                               <p className="mt-2 text-sm leading-6 text-white/55">
-                                {service.description || "Dịch vụ đang được cập nhật mô tả."}
+                                {service.description ||
+                                  "Dịch vụ đang được cập nhật mô tả."}
                               </p>
                               {service.category ? (
                                 <p className="mt-3 text-xs tracking-wide text-white/40 uppercase">
@@ -710,13 +947,17 @@ function BookingHairPage() {
 
                   {!isServicesLoading && servicesError ? (
                     <p className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                      {servicesError} Bạn vẫn có thể nhập tay dịch vụ và số tiền để tiếp tục đặt lịch.
+                      {servicesError} Bạn vẫn có thể nhập tay dịch vụ và số tiền
+                      để tiếp tục đặt lịch.
                     </p>
                   ) : null}
 
-                  {!isServicesLoading && !servicesError && serviceOptions.length === 0 ? (
+                  {!isServicesLoading &&
+                  !servicesError &&
+                  serviceOptions.length === 0 ? (
                     <p className="mt-4 rounded-2xl border border-white/10 bg-[#120d08] px-4 py-3 text-sm text-white/60">
-                      Hiện chưa có dịch vụ khả dụng để chọn nhanh. Bạn vẫn có thể nhập tay thông tin dịch vụ bên dưới.
+                      Hiện chưa có dịch vụ khả dụng để chọn nhanh. Bạn vẫn có
+                      thể nhập tay thông tin dịch vụ bên dưới.
                     </p>
                   ) : null}
 
@@ -768,6 +1009,19 @@ function BookingHairPage() {
                       <p className="mt-1 font-semibold text-white">
                         {serviceName || "Chưa chọn"}
                       </p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-[#17100b] px-4 py-3">
+                      <p className="text-white/50">Chi nhánh</p>
+                      <p className="mt-1 font-semibold text-white">
+                        {selectedBranch
+                          ? `${selectedBranch.name} - ${selectedBranch.city}`
+                          : "Chưa chọn chi nhánh"}
+                      </p>
+                      {selectedBranch ? (
+                        <p className="mt-2 text-xs leading-6 text-white/55">
+                          {selectedBranch.address}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="rounded-xl border border-white/10 bg-[#17100b] px-4 py-3">
                       <p className="text-white/50">Ngày</p>

@@ -42,6 +42,16 @@ function mapNewsCard(item, category) {
   };
 }
 
+function getNewsDetailPath(slug) {
+  const normalizedSlug = String(slug || "").trim();
+
+  if (!normalizedSlug) {
+    return "/news";
+  }
+
+  return `/news/${normalizedSlug}`;
+}
+
 function NewsSkeleton({ className = "" }) {
   return <div className={`animate-pulse rounded-[28px] bg-white/8 ${className}`} />;
 }
@@ -313,29 +323,38 @@ function NewsPage() {
                 {/* Layout trên: 1 bài nổi bật lớn và 2 bài spotlight bên phải */}
                 <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
                   {featuredPost ? (
-                    <article className="overflow-hidden rounded-[30px] border border-white/10 bg-[#140e09]/90 shadow-[0_24px_80px_rgba(0,0,0,0.32)]">
-                      <div className="relative h-[320px] overflow-hidden md:h-[420px]">
-                        <img
-                          src={featuredPost.image}
-                          alt={featuredPost.title}
-                          className="h-full w-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.08),rgba(0,0,0,0.22),rgba(0,0,0,0.78))]" />
-                        <div className="absolute inset-x-0 bottom-0 p-6 md:p-8">
-                          <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase">
-                            <span className="rounded-full bg-[#c8a96e] px-3 py-1 text-[#1a130b]">
-                              {featuredPost.category}
+                    <article className="overflow-hidden rounded-[30px] border border-white/10 bg-[#140e09]/90 shadow-[0_24px_80px_rgba(0,0,0,0.32)] transition hover:-translate-y-1 hover:border-[#c8a96e]/30">
+                      {/* Bọc bài nổi bật bằng link để người dùng bấm vào là đi thẳng tới trang đọc chi tiết. */}
+                      <Link
+                        to={getNewsDetailPath(featuredPost.slug)}
+                        className="group block"
+                      >
+                        <div className="relative h-[320px] overflow-hidden md:h-[420px]">
+                          <img
+                            src={featuredPost.image}
+                            alt={featuredPost.title}
+                            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                          />
+                          <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.08),rgba(0,0,0,0.22),rgba(0,0,0,0.78))]" />
+                          <div className="absolute inset-x-0 bottom-0 p-6 md:p-8">
+                            <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase">
+                              <span className="rounded-full bg-[#c8a96e] px-3 py-1 text-[#1a130b]">
+                                {featuredPost.category}
+                              </span>
+                              <span className="text-white/70">{featuredPost.date}</span>
+                            </div>
+                            <h2 className="mt-4 max-w-3xl text-2xl leading-tight font-black text-[#f6e7c7] md:text-4xl">
+                              {featuredPost.title}
+                            </h2>
+                            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/75 md:text-base md:leading-8">
+                              {featuredPost.excerpt}
+                            </p>
+                            <span className="mt-5 inline-flex text-sm font-semibold text-[#f7deb1] transition group-hover:text-white">
+                              Đọc bài viết →
                             </span>
-                            <span className="text-white/70">{featuredPost.date}</span>
                           </div>
-                          <h2 className="mt-4 max-w-3xl text-2xl leading-tight font-black text-[#f6e7c7] md:text-4xl">
-                            {featuredPost.title}
-                          </h2>
-                          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/75 md:text-base md:leading-8">
-                            {featuredPost.excerpt}
-                          </p>
                         </div>
-                      </div>
+                      </Link>
                     </article>
                   ) : null}
 
@@ -344,30 +363,35 @@ function NewsPage() {
                       {spotlightPosts.map((post, index) => (
                         <article
                           key={post.id || post.slug || post.title}
-                          className="product-card-reveal overflow-hidden rounded-[28px] border border-white/10 bg-[#140e09]/88 shadow-[0_20px_60px_rgba(0,0,0,0.28)]"
+                          className="product-card-reveal overflow-hidden rounded-[28px] border border-white/10 bg-[#140e09]/88 shadow-[0_20px_60px_rgba(0,0,0,0.28)] transition hover:-translate-y-1 hover:border-[#c8a96e]/30"
                           style={{ animationDelay: `${0.12 + index * 0.1}s` }}
                         >
-                          <div className="grid gap-0 md:grid-cols-[0.95fr_1.05fr]">
-                            <div className="h-[220px] md:h-full">
-                              <img
-                                src={post.image}
-                                alt={post.title}
-                                className="h-full w-full object-cover"
-                              />
-                            </div>
-                            <div className="flex flex-col justify-center p-5 md:p-6">
-                              <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold uppercase">
-                                <span className="text-[#c8a96e]">{post.category}</span>
-                                <span className="text-white/40">{post.date}</span>
+                          <Link to={getNewsDetailPath(post.slug)} className="group block">
+                            <div className="grid gap-0 md:grid-cols-[0.95fr_1.05fr]">
+                              <div className="h-[220px] overflow-hidden md:h-full">
+                                <img
+                                  src={post.image}
+                                  alt={post.title}
+                                  className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                                />
                               </div>
-                              <h3 className="mt-3 text-xl leading-snug font-bold text-[#f6e7c7]">
-                                {post.title}
-                              </h3>
-                              <p className="mt-3 text-sm leading-7 text-white/65">
-                                {post.excerpt}
-                              </p>
+                              <div className="flex flex-col justify-center p-5 md:p-6">
+                                <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold uppercase">
+                                  <span className="text-[#c8a96e]">{post.category}</span>
+                                  <span className="text-white/40">{post.date}</span>
+                                </div>
+                                <h3 className="mt-3 text-xl leading-snug font-bold text-[#f6e7c7]">
+                                  {post.title}
+                                </h3>
+                                <p className="mt-3 text-sm leading-7 text-white/65">
+                                  {post.excerpt}
+                                </p>
+                                <span className="mt-4 inline-flex text-sm font-semibold text-[#f7deb1] transition group-hover:text-white">
+                                  Xem chi tiết →
+                                </span>
+                              </div>
                             </div>
-                          </div>
+                          </Link>
                         </article>
                       ))}
                     </div>
@@ -400,29 +424,34 @@ function NewsPage() {
                           className="product-card-reveal overflow-hidden rounded-[26px] border border-white/10 bg-[#120d08]/88 shadow-[0_18px_50px_rgba(0,0,0,0.25)] transition hover:-translate-y-1 hover:border-[#c8a96e]/30"
                           style={{ animationDelay: `${0.16 + index * 0.08}s` }}
                         >
-                          <div className="relative h-[250px] overflow-hidden">
-                            <img
-                              src={post.image}
-                              alt={post.title}
-                              className="h-full w-full object-cover transition duration-500 hover:scale-[1.03]"
-                            />
-                            <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.04),rgba(0,0,0,0.12),rgba(0,0,0,0.5))]" />
-                            <div className="absolute top-4 left-4 rounded-full bg-[#f6e7c7] px-3 py-1 text-[11px] font-bold text-[#1a130b] uppercase">
-                              {post.category}
+                          <Link to={getNewsDetailPath(post.slug)} className="group block">
+                            <div className="relative h-[250px] overflow-hidden">
+                              <img
+                                src={post.image}
+                                alt={post.title}
+                                className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                              />
+                              <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.04),rgba(0,0,0,0.12),rgba(0,0,0,0.5))]" />
+                              <div className="absolute top-4 left-4 rounded-full bg-[#f6e7c7] px-3 py-1 text-[11px] font-bold text-[#1a130b] uppercase">
+                                {post.category}
+                              </div>
                             </div>
-                          </div>
 
-                          <div className="p-5 md:p-6">
-                            <p className="text-[11px] font-semibold tracking-[0.18em] text-white/40 uppercase">
-                              {post.date}
-                            </p>
-                            <h3 className="mt-3 text-xl leading-snug font-bold text-[#f6e7c7]">
-                              {post.title}
-                            </h3>
-                            <p className="mt-3 text-sm leading-7 text-white/65">
-                              {post.excerpt}
-                            </p>
-                          </div>
+                            <div className="p-5 md:p-6">
+                              <p className="text-[11px] font-semibold tracking-[0.18em] text-white/40 uppercase">
+                                {post.date}
+                              </p>
+                              <h3 className="mt-3 text-xl leading-snug font-bold text-[#f6e7c7] transition group-hover:text-white">
+                                {post.title}
+                              </h3>
+                              <p className="mt-3 text-sm leading-7 text-white/65">
+                                {post.excerpt}
+                              </p>
+                              <span className="mt-4 inline-flex text-sm font-semibold text-[#f7deb1] transition group-hover:text-white">
+                                Xem chi tiết →
+                              </span>
+                            </div>
+                          </Link>
                         </article>
                       ))}
                     </div>

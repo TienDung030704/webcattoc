@@ -27,7 +27,7 @@ class NotificationService {
     return await this.create({
       type: "APPOINTMENT_BOOKED",
       title: "Có lịch hẹn mới",
-      message: `${appointment.customerName} đã đặt lịch ${appointment.serviceName}`,
+      message: `${appointment.customerName} đã đặt lịch ${appointment.serviceName}${appointment.branchName ? ` tại ${appointment.branchName}` : ""}`,
       resourceType: "APPOINTMENT",
       resourceId: appointment.id,
       payload: {

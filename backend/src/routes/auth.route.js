@@ -11,4 +11,8 @@ router.post("/refresh-token", authController.refreshToken);
 router.post("/logout", authController.logout);
 router.get("/me", authRequired, authController.getCurrentUser);
 
+// Google OAuth
+router.get("/google", authController.googleLogin);
+router.get("/google/callback", ...authController.googleCallback);
+
 module.exports = router;

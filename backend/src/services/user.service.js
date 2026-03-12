@@ -1,6 +1,9 @@
 const fs = require("fs");
+const bcrypt = require("bcrypt");
 const prisma = require("@/libs/prisma");
 const adminService = require("@/services/admin.service");
+const branchService = require("@/services/branch.service");
+const emailService = require("@/services/email.service");
 const orderService = require("@/services/order.service");
 const { Prisma } = require("../../generated/client");
 
@@ -70,6 +73,50 @@ class UserService {
     if (value != null && value.length > maxLength) {
       throw new Error(message);
     }
+  }
+
+  normalizePassword(value, fieldLabel) {
+    if (typeof value !== "string") {
+      throw new Error(`${fieldLabel} không hợp lệ`);
+    }
+
+    const normalizedValue = value.trim();
+    if (!normalizedValue) {
+      throw new Error(`${fieldLabel} không hợp lệ`);
+    }
+
+    return normalizedValue;
+  }
+
+  normalizeChangePasswordPayload(payload = {}) {
+    const source = payload && typeof payload === "object" ? payload : {};
+    const allowedFields = ["currentPassword", "newPassword"];
+    const hasAllowedField = allowedFields.some((field) =>
+      Object.prototype.hasOwnProperty.call(source, field),
+    );
+
+    if (!hasAllowedField) {
+      throw new Error("Không có dữ liệu cập nhật");
+    }
+
+    const currentPassword = this.normalizePassword(
+      source.currentPassword,
+      "Mật khẩu hiện tại",
+    );
+    const newPassword = this.normalizePassword(source.newPassword, "Mật khẩu mới");
+
+    if (newPassword.length < 8) {
+      throw new Error("Mật khẩu mới phải có ít nhất 8 ký tự");
+    }
+
+    if (newPassword === currentPassword) {
+      throw new Error("Mật khẩu mới phải khác mật khẩu hiện tại");
+    }
+
+    return {
+      currentPassword,
+      newPassword,
+    };
   }
 
   normalizeAvatar(value, { required = false } = {}) {
@@ -490,12 +537,20 @@ class UserService {
     };
   }
 
+  async getBranches(query = {}) {
+    // Tái dùng branch service để user namespace trả cùng nguồn dữ liệu với stores page.
+    return await branchService.getBranches(query);
+  }
+
   async getUserByIdOrThrow(userId) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
         username: true,
+        email: true,
+        firstName: true,
+        lastName: true,
       },
     });
 
@@ -508,7 +563,7 @@ class UserService {
 
   buildCreateAppointmentData(payload = {}) {
     const source = payload && typeof payload === "object" ? payload : {};
-    const allowedFields = ["serviceName", "appointmentAt", "amount"];
+    const allowedFields = ["serviceName", "appointmentAt", "amount", "branchId"];
     const forbiddenFields = [
       "id",
       "userId",
@@ -555,10 +610,13 @@ class UserService {
       throw new Error("Số tiền không hợp lệ");
     }
 
+    const normalizedBranchId = branchService.normalizeBranchId(source.branchId);
+
     return {
       serviceName,
       appointmentAt: appointmentDate,
       amount: normalizedAmount,
+      branchId: normalizedBranchId,
     };
   }
 
@@ -567,19 +625,53 @@ class UserService {
       id: appointment.id,
       serviceName: appointment.serviceName,
       appointmentTime: appointment.appointmentTime,
-      amount: appointment.amount,
+      amount: Number(appointment.amount || 0),
       status: appointment.status,
+      branch: appointment.branch
+        ? {
+            id: appointment.branch.id,
+            name: appointment.branch.name,
+            city: appointment.branch.city,
+            district: appointment.branch.district,
+            address: appointment.branch.address,
+          }
+        : null,
     };
   }
 
   async createAppointment(userId, payload = {}) {
-    await this.getUserByIdOrThrow(userId);
+    const currentUser = await this.getUserByIdOrThrow(userId);
 
     // Validate payload booking trước khi tái dùng luồng tạo lịch hẹn hiện có của admin service.
     const data = this.buildCreateAppointmentData(payload);
+    await branchService.getActiveBranchByIdOrThrow(data.branchId);
+
     const appointment = await adminService.createAppointment({
       userId,
       ...data,
+    });
+
+    const bookingRecipientEmail = String(currentUser?.email || appointment?.customerEmail || "").trim();
+    const bookingCustomerName =
+      [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(" ").trim() ||
+      currentUser?.username ||
+      appointment?.customerName ||
+      bookingRecipientEmail ||
+      "Khách hàng";
+
+    // Luôn ưu tiên gửi về đúng email của user đang đăng nhập đặt lịch.
+    Promise.resolve(
+      emailService.sendBookingConfirmationEmail(bookingRecipientEmail, {
+        ...appointment,
+        customerEmail: bookingRecipientEmail,
+        customerName: bookingCustomerName,
+      }),
+    ).catch((error) => {
+      console.error("Send booking confirmation email failed:", {
+        appointmentId: String(appointment.id || ""),
+        email: bookingRecipientEmail || null,
+        message: error?.message || String(error),
+      });
     });
 
     return this.mapUserAppointment(appointment);
@@ -622,6 +714,56 @@ class UserService {
       data,
       select: this.getUserProfileSelect(),
     });
+  }
+
+  async changePassword(userId, payload = {}) {
+    const { currentPassword, newPassword } = this.normalizeChangePasswordPayload(payload);
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        password: true,
+      },
+    });
+
+    if (!user) {
+      throw new Error("Không tìm thấy người dùng");
+    }
+
+    const isCurrentPasswordValid = await bcrypt.compare(
+      currentPassword,
+      user.password,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new Error("Mật khẩu hiện tại không đúng");
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Đổi mật khẩu và revoke toàn bộ refresh token cũ để buộc đăng nhập lại bằng mật khẩu mới.
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          password: hashedPassword,
+        },
+      }),
+      prisma.refreshToken.updateMany({
+        where: {
+          userId,
+          isRevoked: false,
+        },
+        data: {
+          isRevoked: true,
+        },
+      }),
+    ]);
+
+    return {
+      changed: true,
+    };
   }
 
   deleteUploadedFile(filePath) {

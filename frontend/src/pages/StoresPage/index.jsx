@@ -1,73 +1,71 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import HeaderAuthArea from "@/components/Header/AuthIsStatus/AuthStatus";
+import http from "@/utils/http";
 
-// Danh sách chi nhánh theo từng khu vực
-const storeAreas = [
-  {
-    city: "TP. HỒ CHÍ MINH",
-    branches: [
-      {
-        district: "Quận 1",
-        address: "48 Nguyễn Trãi, P. Bến Thành, Quận 1, TP. Hồ Chí Minh",
-      },
-      {
-        district: "Quận 3",
-        address: "214 Nguyễn Đình Chiểu, P. 6, Quận 3, TP. Hồ Chí Minh",
-      },
-      {
-        district: "Quận 5",
-        address: "102 Trần Hưng Đạo, P. 7, Quận 5, TP. Hồ Chí Minh",
-      },
-      {
-        district: "Quận 7",
-        address: "36 Nguyễn Thị Thập, P. Tân Hưng, Quận 7, TP. Hồ Chí Minh",
-      },
-      {
-        district: "Quận Bình Thạnh",
-        address:
-          "219 Xô Viết Nghệ Tĩnh, P. 17, Quận Bình Thạnh, TP. Hồ Chí Minh",
-      },
-      {
-        district: "TP. Thủ Đức",
-        address: "22 Võ Văn Ngân, P. Linh Chiểu, TP. Thủ Đức, TP. Hồ Chí Minh",
-      },
-    ],
-  },
-  {
-    city: "HÀ NỘI",
-    branches: [
-      {
-        district: "Quận Ba Đình",
-        address: "126 Nguyễn Trường Tộ, Q. Ba Đình, Hà Nội",
-      },
-      {
-        district: "Quận Đống Đa",
-        address: "58 Tôn Đức Thắng, Q. Đống Đa, Hà Nội",
-      },
-      {
-        district: "Quận Cầu Giấy",
-        address: "102 Trần Thái Tông, Q. Cầu Giấy, Hà Nội",
-      },
-      {
-        district: "Quận Hoàn Kiếm",
-        address: "86 Hàng Bông, Q. Hoàn Kiếm, Hà Nội",
-      },
-      {
-        district: "Quận Hai Bà Trưng",
-        address: "148 Phố Huế, Q. Hai Bà Trưng, Hà Nội",
-      },
-      {
-        district: "Quận Thanh Xuân",
-        address: "231 Nguyễn Trãi, Q. Thanh Xuân, Hà Nội",
-      },
-    ],
-  },
-];
+function mapStoreBranch(branch) {
+  return {
+    id: String(branch.id),
+    name: branch.name,
+    city: branch.city,
+    district: branch.district,
+    address: branch.address,
+    sortOrder: Number(branch.sortOrder || 0),
+  };
+}
+
+function groupBranchesByCity(branches = []) {
+  const grouped = branches.reduce((result, branch) => {
+    const cityKey = branch.city;
+
+    if (!result[cityKey]) {
+      result[cityKey] = [];
+    }
+
+    result[cityKey].push(branch);
+    return result;
+  }, {});
+
+  return Object.entries(grouped).map(([city, items]) => ({
+    city,
+    branches: items.sort((firstBranch, secondBranch) => {
+      if (firstBranch.sortOrder !== secondBranch.sortOrder) {
+        return firstBranch.sortOrder - secondBranch.sortOrder;
+      }
+
+      return firstBranch.name.localeCompare(secondBranch.name, "vi");
+    }),
+  }));
+}
 
 function StoresPage() {
+  const [storeAreas, setStoreAreas] = useState([]);
+  const [isBranchesLoading, setIsBranchesLoading] = useState(true);
+  const [branchesError, setBranchesError] = useState("");
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      setIsBranchesLoading(true);
+      setBranchesError("");
+
+      try {
+        // Lấy danh sách chi nhánh từ backend để trang stores và booking luôn hiển thị cùng một nguồn dữ liệu.
+        const response = await http.get("user/branches");
+        const items = (response?.data?.items || []).map(mapStoreBranch);
+        setStoreAreas(groupBranchesByCity(items));
+      } catch (error) {
+        setStoreAreas([]);
+        setBranchesError("Không thể tải hệ thống cửa hàng lúc này.");
+      } finally {
+        setIsBranchesLoading(false);
+      }
+    };
+
+    fetchBranches();
+  }, []);
   return (
     <div className="min-h-screen bg-[#050505] text-white">
       {/* Header điều hướng chính của website */}
@@ -167,66 +165,89 @@ function StoresPage() {
 
           {/* Mỗi block là một khu vực như TP.HCM hoặc Hà Nội */}
           <div className="relative mx-auto max-w-[1560px] space-y-16">
-            {storeAreas.map((area, areaIndex) => (
-              <section key={area.city}>
-                <div className="mx-auto mb-10 max-w-5xl text-center">
-                  <p className="text-sm font-semibold tracking-[0.28em] text-[#c8a96e] uppercase">
-                    Khu vực
-                  </p>
-                  <h2 className="mt-3 text-3xl font-black tracking-[0.06em] text-[#f6e7c7] uppercase md:text-5xl">
-                    {area.city}
-                  </h2>
-                  <div className="mx-auto mt-4 h-1 w-24 rounded-full bg-[#c8a96e]" />
-                </div>
+            {isBranchesLoading ? (
+              <div className="grid gap-7 md:grid-cols-2 xl:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div
+                    key={`store-skeleton-${index}`}
+                    className="aspect-[0.82] rounded-[28px] border border-white/10 bg-[#120d08]/80 p-6"
+                  >
+                    <div className="h-6 w-1/2 animate-pulse rounded bg-white/10" />
+                    <div className="mt-6 h-52 w-full animate-pulse rounded-2xl bg-white/8" />
+                    <div className="mt-6 h-16 animate-pulse rounded-2xl bg-white/8" />
+                  </div>
+                ))}
+              </div>
+            ) : branchesError ? (
+              <div className="rounded-3xl border border-amber-500/20 bg-amber-500/10 px-6 py-5 text-center text-sm text-amber-100">
+                {branchesError}
+              </div>
+            ) : storeAreas.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-white/10 bg-[#0d1215] px-6 py-10 text-center text-sm text-white/55">
+                Hiện chưa có dữ liệu chi nhánh để hiển thị.
+              </div>
+            ) : (
+              storeAreas.map((area, areaIndex) => (
+                <section key={area.city}>
+                  <div className="mx-auto mb-10 max-w-5xl text-center">
+                    <p className="text-sm font-semibold tracking-[0.28em] text-[#c8a96e] uppercase">
+                      Khu vực
+                    </p>
+                    <h2 className="mt-3 text-3xl font-black tracking-[0.06em] text-[#f6e7c7] uppercase md:text-5xl">
+                      {area.city}
+                    </h2>
+                    <div className="mx-auto mt-4 h-1 w-24 rounded-full bg-[#c8a96e]" />
+                  </div>
 
-                {/* Grid các khung chi nhánh trong từng khu vực */}
-                <div className="grid gap-7 md:grid-cols-2 xl:grid-cols-3">
-                  {area.branches.map((branch, branchIndex) => (
-                    <article
-                      key={`${area.city}-${branch.district}`}
-                      className="service-board-reveal relative mx-auto w-full max-w-[440px] md:max-w-[500px]"
-                      style={{
-                        animationDelay: `${
-                          0.15 + areaIndex * 0.12 + branchIndex * 0.1
-                        }s`,
-                      }}
-                    >
-                      <div className="relative aspect-[0.82] w-full">
-                        <img
-                          src="/frame-service.png"
-                          alt={branch.district}
-                          className="service-frame-float absolute inset-0 h-full w-full object-contain drop-shadow-[0_18px_50px_rgba(0,0,0,0.62)]"
-                          style={{
-                            animationDelay: `${areaIndex * 0.35 + branchIndex * 0.2}s`,
-                          }}
-                        />
-
-                        <div className="absolute inset-x-[12%] top-[12.5%] bottom-[12.5%] flex flex-col items-center px-5 text-center md:px-7">
-                          <h3
-                            className="mt-3 text-[17px] leading-tight font-black text-[#f4eee4] uppercase md:mt-4 md:text-[21px]"
-                            style={{ textShadow: "2px 2px 0 #b81212" }}
-                          >
-                            {branch.district}
-                          </h3>
-
+                  {/* Grid các khung chi nhánh trong từng khu vực */}
+                  <div className="grid gap-7 md:grid-cols-2 xl:grid-cols-3">
+                    {area.branches.map((branch, branchIndex) => (
+                      <article
+                        key={branch.id}
+                        className="service-board-reveal relative mx-auto w-full max-w-[440px] md:max-w-[500px]"
+                        style={{
+                          animationDelay: `${
+                            0.15 + areaIndex * 0.12 + branchIndex * 0.1
+                          }s`,
+                        }}
+                      >
+                        <div className="relative aspect-[0.82] w-full">
                           <img
-                            src="/store-1.png"
-                            alt={branch.district}
-                            className="mt-5 h-52 w-full rounded-2xl border border-white/15 bg-black/20 object-contain object-center p-2 md:h-60"
+                            src="/frame-service.png"
+                            alt={branch.name}
+                            className="service-frame-float absolute inset-0 h-full w-full object-contain drop-shadow-[0_18px_50px_rgba(0,0,0,0.62)]"
+                            style={{
+                              animationDelay: `${areaIndex * 0.35 + branchIndex * 0.2}s`,
+                            }}
                           />
 
-                          <div className="mt-3 w-[86%] max-w-[300px] rounded-[14px] bg-gradient-to-b from-[#1a120d]/88 to-[#110b07]/82 px-3 py-2.5 shadow-[0_10px_24px_rgba(0,0,0,0.28)] md:mt-4">
-                            <p className="text-[11px] leading-[1.5] font-medium tracking-[0.01em] break-words text-[#f7efe0] drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)] md:text-[12px]">
-                              {branch.address}
-                            </p>
+                          <div className="absolute inset-x-[12%] top-[12.5%] bottom-[12.5%] flex flex-col items-center px-5 text-center md:px-7">
+                            <h3
+                              className="mt-3 text-[17px] leading-tight font-black text-[#f4eee4] uppercase md:mt-4 md:text-[21px]"
+                              style={{ textShadow: "2px 2px 0 #b81212" }}
+                            >
+                              {branch.name}
+                            </h3>
+
+                            <img
+                              src="/store-1.png"
+                              alt={branch.name}
+                              className="mt-5 h-52 w-full rounded-2xl border border-white/15 bg-black/20 object-contain object-center p-2 md:h-60"
+                            />
+
+                            <div className="mt-3 w-[86%] max-w-[300px] rounded-[14px] bg-gradient-to-b from-[#1a120d]/88 to-[#110b07]/82 px-3 py-2.5 shadow-[0_10px_24px_rgba(0,0,0,0.28)] md:mt-4">
+                              <p className="text-[11px] leading-[1.5] font-medium tracking-[0.01em] break-words text-[#f7efe0] drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)] md:text-[12px]">
+                                {branch.address}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            ))}
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ))
+            )}
           </div>
         </section>
       </main>

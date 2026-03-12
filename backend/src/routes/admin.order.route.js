@@ -13,5 +13,6 @@ router.use(authRequired, checkRoles("ADMIN"));
 router.get("/", adminOrderController.getOrders);
 router.get("/:id", adminOrderController.getOrderById);
 router.patch("/:id/status", adminOrderController.updateOrderStatus);
+router.patch("/:id/payment", adminOrderController.confirmOrderPayment);
 
 module.exports = router;

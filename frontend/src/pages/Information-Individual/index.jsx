@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, LoaderCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { Camera, Eye, EyeOff, LoaderCircle } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import Footer from "@/components/Footer";
@@ -8,6 +10,10 @@ import Header from "@/components/Header";
 import HeaderAuthArea from "@/components/Header/AuthIsStatus/AuthStatus";
 import { useGetCurrentUser } from "@/features/Auth/hook";
 import http from "@/utils/http";
+import { changePasswordSchema } from "@/utils/validate";
+
+const PROFILE_TAB = "profile";
+const PASSWORD_TAB = "password";
 
 const getInitialFormValues = (user) => ({
   username: user?.username || "",
@@ -18,15 +24,47 @@ const getInitialFormValues = (user) => ({
 
 function InformationIndividualPage() {
   const currentUser = useGetCurrentUser();
+  const navigate = useNavigate();
   const avatarFileInputRef = useRef(null);
   const isLoggedIn = Boolean(localStorage.getItem("access_token"));
-  const [formValues, setFormValues] = useState(() => getInitialFormValues(currentUser));
+  const [activeTab, setActiveTab] = useState(PROFILE_TAB);
+  const [formValues, setFormValues] = useState(() =>
+    getInitialFormValues(currentUser),
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAvatarSubmitting, setIsAvatarSubmitting] = useState(false);
+  const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
+  const [showPasswords, setShowPasswords] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false,
+  });
+  const {
+    register: registerPasswordField,
+    handleSubmit: handlePasswordSubmit,
+    reset: resetPasswordForm,
+    formState: { errors: passwordErrors },
+  } = useForm({
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
+    resolver: yupResolver(changePasswordSchema),
+  });
 
   useEffect(() => {
     setFormValues(getInitialFormValues(currentUser));
   }, [currentUser]);
+
+  useEffect(() => {
+    // Mỗi lần đổi tab hoặc đổi user thì reset form mật khẩu để không giữ lại dữ liệu nhạy cảm.
+    resetPasswordForm({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+  }, [activeTab, currentUser, resetPasswordForm]);
 
   const displayName =
     [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(" ") ||
@@ -41,6 +79,13 @@ function InformationIndividualPage() {
     }));
   };
 
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
+  };
+
   const syncUpdatedUser = (updatedUser) => {
     if (!updatedUser) return;
 
@@ -49,6 +94,13 @@ function InformationIndividualPage() {
     // Báo cho các component đang đọc user từ hook cập nhật lại ngay.
     window.dispatchEvent(new Event("user-data-updated"));
     setFormValues(getInitialFormValues(updatedUser));
+  };
+
+  const clearAuthStorage = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user_data");
+    window.dispatchEvent(new Event("user-data-updated"));
   };
 
   const handleSubmit = async (event) => {
@@ -72,7 +124,8 @@ function InformationIndividualPage() {
         position: "top-right",
       });
     } catch (error) {
-      const message = error?.response?.data?.error || "Không thể cập nhật thông tin";
+      const message =
+        error?.response?.data?.error || "Không thể cập nhật thông tin";
       toast.error(message, {
         position: "top-right",
       });
@@ -80,6 +133,39 @@ function InformationIndividualPage() {
       setIsSubmitting(false);
     }
   };
+
+  const handleChangePassword = handlePasswordSubmit(async (values) => {
+    if (isPasswordSubmitting) return;
+
+    try {
+      setIsPasswordSubmitting(true);
+
+      await http.patch("user/profile/password", {
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+      });
+
+      // Đổi mật khẩu xong thì logout local luôn để user đăng nhập lại bằng mật khẩu mới.
+      clearAuthStorage();
+      resetPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+      toast.success("Đổi mật khẩu thành công, vui lòng đăng nhập lại", {
+        position: "top-right",
+      });
+      navigate("/auth/login", { replace: true });
+    } catch (error) {
+      const message = error?.response?.data?.error || "Không thể đổi mật khẩu";
+      toast.error(message, {
+        position: "top-right",
+      });
+    } finally {
+      setIsPasswordSubmitting(false);
+    }
+  });
 
   const handleUpdateAvatar = async (file) => {
     if (!file || isAvatarSubmitting) return;
@@ -99,7 +185,8 @@ function InformationIndividualPage() {
         position: "top-right",
       });
     } catch (error) {
-      const message = error?.response?.data?.error || "Không thể cập nhật ảnh đại diện";
+      const message =
+        error?.response?.data?.error || "Không thể cập nhật ảnh đại diện";
       toast.error(message, {
         position: "top-right",
       });
@@ -289,89 +376,256 @@ function InformationIndividualPage() {
                   </div>
                 </aside>
 
-                <section className="profile-panel-reveal rounded-[26px] border border-white/10 bg-[#17100b]/92 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.32)] md:p-8 lg:p-10" style={{ animationDelay: "0.12s" }}>
+                <section
+                  className="profile-panel-reveal rounded-[26px] border border-white/10 bg-[#17100b]/92 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.32)] md:p-8 lg:p-10"
+                  style={{ animationDelay: "0.12s" }}
+                >
                   <p className="text-sm font-semibold tracking-[0.24em] text-[#c8a96e] uppercase">
                     Hồ sơ người dùng
                   </p>
                   <h2 className="mt-3 text-3xl font-black text-[#f6e7c7] md:text-4xl">
-                    Thông tin cá nhân
+                    {activeTab === PROFILE_TAB
+                      ? "Thông tin cá nhân"
+                      : "Đổi mật khẩu"}
                   </h2>
 
-                  <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
-                    <input
-                      ref={avatarFileInputRef}
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp,image/gif"
-                      onChange={handleAvatarFileChange}
-                      className="hidden"
-                    />
-
-                    <div className="profile-form-reveal grid gap-5 md:grid-cols-2">
-                      <label className="block">
-                        <span className="mb-2 block text-sm font-semibold text-white/75">
-                          Họ
-                        </span>
-                        <input
-                          type="text"
-                          value={formValues.firstName}
-                          onChange={(event) => handleFormChange("firstName", event.target.value)}
-                          placeholder="Nhập họ"
-                          className="w-full rounded-2xl border border-white/10 bg-[#120d08] px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-[#c8a96e]/50 focus:outline-none"
-                        />
-                      </label>
-
-                      <label className="block">
-                        <span className="mb-2 block text-sm font-semibold text-white/75">
-                          Tên
-                        </span>
-                        <input
-                          type="text"
-                          value={formValues.lastName}
-                          onChange={(event) => handleFormChange("lastName", event.target.value)}
-                          placeholder="Nhập tên"
-                          className="w-full rounded-2xl border border-white/10 bg-[#120d08] px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-[#c8a96e]/50 focus:outline-none"
-                        />
-                      </label>
-                    </div>
-                    <div className="profile-form-reveal grid gap-5 md:grid-cols-2" style={{ animationDelay: "0.08s" }}>
-                      <label className="block">
-                        <span className="mb-2 block text-sm font-semibold text-white/75">
-                          Tên đăng nhập
-                        </span>
-                        <input
-                          type="text"
-                          value={formValues.username}
-                          onChange={(event) => handleFormChange("username", event.target.value)}
-                          placeholder="Nhập tên đăng nhập"
-                          className="w-full rounded-2xl border border-white/10 bg-[#120d08] px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-[#c8a96e]/50 focus:outline-none"
-                        />
-                      </label>
-
-                      <label className="block">
-                        <span className="mb-2 block text-sm font-semibold text-white/75">
-                          Email
-                        </span>
-                        <input
-                          type="email"
-                          value={currentUser?.email || ""}
-                          disabled
-                          className="w-full cursor-not-allowed rounded-2xl border border-white/10 bg-[#120d08]/70 px-4 py-3 text-sm text-white/65 placeholder:text-white/35 focus:outline-none"
-                        />
-                      </label>
-                    </div>
-
-                    <p className="profile-form-reveal text-sm text-white/50" style={{ animationDelay: "0.2s" }}>
-                      Email, số điện thoại và địa chỉ hiện chưa được backend hỗ trợ cập nhật.
-                    </p>
-
+                  <div className="mt-8 flex flex-wrap gap-3">
                     <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="inline-flex items-center justify-center rounded-2xl bg-[#c8a96e] px-8 py-3 text-sm font-bold text-[#1a130b] transition hover:bg-[#d9bb82] disabled:cursor-not-allowed disabled:opacity-60"
+                      type="button"
+                      onClick={() => setActiveTab(PROFILE_TAB)}
+                      className={`rounded-2xl border px-5 py-2.5 text-sm font-semibold transition ${
+                        activeTab === PROFILE_TAB
+                          ? "border-[#c8a96e] bg-[#c8a96e] text-[#1a130b]"
+                          : "border-white/10 bg-[#120d08] text-white/70 hover:border-[#c8a96e]/50 hover:text-white"
+                      }`}
                     >
-                      {isSubmitting ? "Đang cập nhật..." : "Cập nhật thông tin"}
+                      Thông tin cá nhân
                     </button>
-                  </form>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab(PASSWORD_TAB)}
+                      className={`rounded-2xl border px-5 py-2.5 text-sm font-semibold transition ${
+                        activeTab === PASSWORD_TAB
+                          ? "border-[#c8a96e] bg-[#c8a96e] text-[#1a130b]"
+                          : "border-white/10 bg-[#120d08] text-white/70 hover:border-[#c8a96e]/50 hover:text-white"
+                      }`}
+                    >
+                      Đổi mật khẩu
+                    </button>
+                  </div>
+
+                  <input
+                    ref={avatarFileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    onChange={handleAvatarFileChange}
+                    className="hidden"
+                  />
+
+                  {activeTab === PROFILE_TAB ? (
+                    <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+                      <div className="profile-form-reveal grid gap-5 md:grid-cols-2">
+                        <label className="block">
+                          <span className="mb-2 block text-sm font-semibold text-white/75">
+                            Họ
+                          </span>
+                          <input
+                            type="text"
+                            value={formValues.firstName}
+                            onChange={(event) =>
+                              handleFormChange("firstName", event.target.value)
+                            }
+                            placeholder="Nhập họ"
+                            className="w-full rounded-2xl border border-white/10 bg-[#120d08] px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-[#c8a96e]/50 focus:outline-none"
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className="mb-2 block text-sm font-semibold text-white/75">
+                            Tên
+                          </span>
+                          <input
+                            type="text"
+                            value={formValues.lastName}
+                            onChange={(event) =>
+                              handleFormChange("lastName", event.target.value)
+                            }
+                            placeholder="Nhập tên"
+                            className="w-full rounded-2xl border border-white/10 bg-[#120d08] px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-[#c8a96e]/50 focus:outline-none"
+                          />
+                        </label>
+                      </div>
+                      <div
+                        className="profile-form-reveal grid gap-5 md:grid-cols-2"
+                        style={{ animationDelay: "0.08s" }}
+                      >
+                        <label className="block">
+                          <span className="mb-2 block text-sm font-semibold text-white/75">
+                            Tên đăng nhập
+                          </span>
+                          <input
+                            type="text"
+                            value={formValues.username}
+                            onChange={(event) =>
+                              handleFormChange("username", event.target.value)
+                            }
+                            placeholder="Nhập tên đăng nhập"
+                            className="w-full rounded-2xl border border-white/10 bg-[#120d08] px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-[#c8a96e]/50 focus:outline-none"
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className="mb-2 block text-sm font-semibold text-white/75">
+                            Email
+                          </span>
+                          <input
+                            type="email"
+                            value={currentUser?.email || ""}
+                            disabled
+                            className="w-full cursor-not-allowed rounded-2xl border border-white/10 bg-[#120d08]/70 px-4 py-3 text-sm text-white/65 placeholder:text-white/35 focus:outline-none"
+                          />
+                        </label>
+                      </div>
+
+                      <p
+                        className="profile-form-reveal text-sm text-white/50"
+                        style={{ animationDelay: "0.2s" }}
+                      >
+                        Email, số điện thoại và địa chỉ hiện chưa được backend hỗ
+                        trợ cập nhật.
+                      </p>
+
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="inline-flex items-center justify-center rounded-2xl bg-[#c8a96e] px-8 py-3 text-sm font-bold text-[#1a130b] transition hover:bg-[#d9bb82] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isSubmitting ? "Đang cập nhật..." : "Cập nhật thông tin"}
+                      </button>
+                    </form>
+                  ) : (
+                    <form className="mt-8 space-y-5" onSubmit={handleChangePassword}>
+                      <div className="profile-form-reveal grid gap-5">
+                        <label className="block">
+                          <span className="mb-2 block text-sm font-semibold text-white/75">
+                            Mật khẩu hiện tại
+                          </span>
+                          <div className="relative">
+                            <input
+                              type={showPasswords.currentPassword ? "text" : "password"}
+                              {...registerPasswordField("currentPassword")}
+                              placeholder="Nhập mật khẩu hiện tại"
+                              className="w-full rounded-2xl border border-white/10 bg-[#120d08] px-4 py-3 pr-12 text-sm text-white placeholder:text-white/35 focus:border-[#c8a96e]/50 focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => togglePasswordVisibility("currentPassword")}
+                              className="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center text-white/45 transition hover:text-white/80"
+                              aria-label={
+                                showPasswords.currentPassword
+                                  ? "Ẩn mật khẩu hiện tại"
+                                  : "Hiện mật khẩu hiện tại"
+                              }
+                            >
+                              {showPasswords.currentPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                          {passwordErrors.currentPassword ? (
+                            <p className="mt-2 text-xs text-red-300">
+                              {passwordErrors.currentPassword.message}
+                            </p>
+                          ) : null}
+                        </label>
+
+                        <label className="block">
+                          <span className="mb-2 block text-sm font-semibold text-white/75">
+                            Mật khẩu mới
+                          </span>
+                          <div className="relative">
+                            <input
+                              type={showPasswords.newPassword ? "text" : "password"}
+                              {...registerPasswordField("newPassword")}
+                              placeholder="Nhập mật khẩu mới"
+                              className="w-full rounded-2xl border border-white/10 bg-[#120d08] px-4 py-3 pr-12 text-sm text-white placeholder:text-white/35 focus:border-[#c8a96e]/50 focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => togglePasswordVisibility("newPassword")}
+                              className="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center text-white/45 transition hover:text-white/80"
+                              aria-label={
+                                showPasswords.newPassword
+                                  ? "Ẩn mật khẩu mới"
+                                  : "Hiện mật khẩu mới"
+                              }
+                            >
+                              {showPasswords.newPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                          {passwordErrors.newPassword ? (
+                            <p className="mt-2 text-xs text-red-300">
+                              {passwordErrors.newPassword.message}
+                            </p>
+                          ) : null}
+                        </label>
+
+                        <label className="block">
+                          <span className="mb-2 block text-sm font-semibold text-white/75">
+                            Xác nhận mật khẩu mới
+                          </span>
+                          <div className="relative">
+                            <input
+                              type={showPasswords.confirmPassword ? "text" : "password"}
+                              {...registerPasswordField("confirmPassword")}
+                              placeholder="Nhập lại mật khẩu mới"
+                              className="w-full rounded-2xl border border-white/10 bg-[#120d08] px-4 py-3 pr-12 text-sm text-white placeholder:text-white/35 focus:border-[#c8a96e]/50 focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => togglePasswordVisibility("confirmPassword")}
+                              className="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center text-white/45 transition hover:text-white/80"
+                              aria-label={
+                                showPasswords.confirmPassword
+                                  ? "Ẩn xác nhận mật khẩu mới"
+                                  : "Hiện xác nhận mật khẩu mới"
+                              }
+                            >
+                              {showPasswords.confirmPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                          {passwordErrors.confirmPassword ? (
+                            <p className="mt-2 text-xs text-red-300">
+                              {passwordErrors.confirmPassword.message}
+                            </p>
+                          ) : null}
+                        </label>
+                      </div>
+
+                      <p className="text-sm text-white/50">
+                        Sau khi đổi mật khẩu thành công, bạn sẽ được đăng xuất để
+                        đăng nhập lại bằng mật khẩu mới.
+                      </p>
+
+                      <button
+                        type="submit"
+                        disabled={isPasswordSubmitting}
+                        className="inline-flex items-center justify-center rounded-2xl bg-[#c8a96e] px-8 py-3 text-sm font-bold text-[#1a130b] transition hover:bg-[#d9bb82] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isPasswordSubmitting ? "Đang đổi mật khẩu..." : "Đổi mật khẩu"}
+                      </button>
+                    </form>
+                  )}
                 </section>
               </div>
             )}

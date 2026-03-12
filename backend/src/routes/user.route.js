@@ -1,5 +1,6 @@
 const express = require("express");
 
+const branchRouter = require("@/routes/branch.route");
 const userController = require("@/controllers/user.controller");
 const authRequired = require("@/middleware/authRequire");
 const uploadUserAvatar = require("@/middleware/uploadUserAvatar");
@@ -11,6 +12,9 @@ router.get("/products", userController.getProducts);
 
 // Public API cho storefront lấy chi tiết 1 sản phẩm đang hiển thị.
 router.get("/products/:productId", userController.getProductDetail);
+
+// Public API cho booking/stores page lấy danh sách chi nhánh đang hoạt động.
+router.use("/branches", branchRouter);
 
 // Public API cho booking page lấy danh sách dịch vụ đang hiển thị.
 router.get("/services", userController.getServices);
@@ -35,6 +39,9 @@ router.post("/orders", authRequired, userController.createOrder);
 
 // API cho user đang đăng nhập tự cập nhật thông tin profile của chính mình.
 router.patch("/profile", authRequired, userController.updateProfile);
+
+// API đổi mật khẩu riêng để tách hẳn khỏi luồng update profile thường.
+router.patch("/profile/password", authRequired, userController.changePassword);
 
 // API cập nhật riêng avatar/image của user hiện tại.
 router.patch("/profile/avatar", authRequired, uploadUserAvatar, userController.updateAvatar);
