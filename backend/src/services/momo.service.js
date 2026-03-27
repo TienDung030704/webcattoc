@@ -237,7 +237,9 @@ class MomoService {
 
     // Nếu MoMo không trả về payUrl/qrCodeUrl hợp lệ thì không được coi là đã tạo session thành công.
     if (resultCode !== 0 || !hasPaymentLink) {
-      throw new Error(response?.message || "MoMo không trả về phiên thanh toán hợp lệ");
+      throw new Error(
+        response?.message || "MoMo không trả về phiên thanh toán hợp lệ",
+      );
     }
   }
 
@@ -280,7 +282,10 @@ class MomoService {
     try {
       const response = await this.sendCreatePaymentRequest(requestBody);
       this.ensureCreatePaymentSessionReady(response);
-      const paymentSession = this.buildPaymentSessionFromResponse(response, expiresAt);
+      const paymentSession = this.buildPaymentSessionFromResponse(
+        response,
+        expiresAt,
+      );
 
       const updatedOrder = await prisma.order.update({
         where: {
@@ -387,7 +392,10 @@ class MomoService {
     });
     const response = await this.sendCreatePaymentRequest(requestBody);
     this.ensureCreatePaymentSessionReady(response);
-    const paymentSession = this.buildPaymentSessionFromResponse(response, expiresAt);
+    const paymentSession = this.buildPaymentSessionFromResponse(
+      response,
+      expiresAt,
+    );
 
     const updatedOrder = await prisma.order.update({
       where: {
@@ -511,7 +519,10 @@ class MomoService {
       where: { requestId },
     });
 
-    if (!latestTransaction || latestTransaction.providerOrderId !== providerOrderId) {
+    if (
+      !latestTransaction ||
+      latestTransaction.providerOrderId !== providerOrderId
+    ) {
       throw new Error("Không tìm thấy phiên thanh toán MoMo");
     }
 
