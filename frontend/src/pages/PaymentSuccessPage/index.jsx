@@ -28,7 +28,7 @@ function formatDisplayDate(value) {
   });
 }
 
-const ORDER_SUCCESS_STORAGE_KEY = "payment_bank_order_snapshot";
+const ORDER_SUCCESS_STORAGE_KEY = "payment_order_snapshot";
 
 function PaymentSuccessPage() {
   const location = useLocation();
@@ -187,7 +187,7 @@ function PaymentSuccessPage() {
 
               <div className="divide-y divide-white/10">
                 {order.items.map((item) => {
-                  const lineTotal = Number(item.price || 0) * Number(item.quantity || 0);
+                  const lineTotal = Number(item.lineTotal || 0);
 
                   return (
                     <div
@@ -306,6 +306,20 @@ function PaymentSuccessPage() {
                     />
                   </div>
                 </div>
+              </aside>
+            ) : order.paymentMethod === "MOMO" ? (
+              <aside className="rounded-[18px] border border-white/10 bg-[#0d1218]/92 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+                <h2 className="text-xl font-semibold text-white">Thanh toán MoMo</h2>
+                <div className="mt-4 h-px bg-white/10" />
+                <p className="mt-5 text-sm leading-7 text-white/70">
+                  Giao dịch MoMo của bạn đã được xác nhận thành công. Hệ thống đã ghi nhận
+                  thanh toán và sẽ xử lý đơn hàng theo luồng bình thường.
+                </p>
+                {order.paymentConfirmedAt ? (
+                  <p className="mt-4 text-sm leading-7 text-[#f6e1bf]">
+                    Thời gian xác nhận: {new Date(order.paymentConfirmedAt).toLocaleString("vi-VN")}
+                  </p>
+                ) : null}
               </aside>
             ) : (
               <aside className="rounded-[18px] border border-white/10 bg-[#0d1218]/92 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">

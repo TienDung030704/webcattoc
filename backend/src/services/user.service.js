@@ -624,9 +624,13 @@ class UserService {
     return {
       id: appointment.id,
       serviceName: appointment.serviceName,
-      appointmentTime: appointment.appointmentTime,
+      appointmentTime: appointment.appointmentTime || appointment.appointmentAt,
+      createdAt: appointment.createdAt || null,
       amount: Number(appointment.amount || 0),
       status: appointment.status,
+      paymentMethod: appointment.paymentMethod || null,
+      paymentStatus: appointment.paymentStatus || null,
+      paymentConfirmedAt: appointment.paymentConfirmedAt || null,
       branch: appointment.branch
         ? {
             id: appointment.branch.id,
@@ -636,6 +640,52 @@ class UserService {
             address: appointment.branch.address,
           }
         : null,
+    };
+  }
+
+  async getAppointments(userId, query = {}) {
+    await this.getUserByIdOrThrow(userId);
+
+    // Chuẩn hóa pagination để user history page luôn nhận số trang hợp lệ kể cả khi query bị thiếu.
+    const page = Math.max(Number(query.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 100);
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      prisma.appointment.findMany({
+        where: {
+          userId,
+        },
+        include: {
+          branch: {
+            select: {
+              id: true,
+              name: true,
+              city: true,
+              district: true,
+              address: true,
+            },
+          },
+        },
+        orderBy: [{ appointmentAt: "desc" }, { id: "desc" }],
+        skip,
+        take: limit,
+      }),
+      prisma.appointment.count({
+        where: {
+          userId,
+        },
+      }),
+    ]);
+
+    return {
+      items: items.map((item) => this.mapUserAppointment(item)),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
     };
   }
 
@@ -680,8 +730,10 @@ class UserService {
   async createOrder(userId, payload = {}) {
     await this.getUserByIdOrThrow(userId);
 
-    // Checkout product dùng order service riêng để giữ user service gọn và dễ tái sử dụng.
-    return await orderService.createOrder(userId, payload);
+    // Giữ /api/user/orders chỉ cho COD/chuyển khoản, còn MoMo đi qua module riêng /api/momo.
+    return await orderService.createOrder(userId, payload, {
+      allowedPaymentMethods: ["BANK_TRANSFER", "COD"],
+    });
   }
 
   async updateProfile(userId, payload = {}) {

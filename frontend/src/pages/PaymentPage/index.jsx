@@ -11,7 +11,10 @@ import {
   useCartItems,
   useCartSummary,
 } from "@/features/cart/hook";
-import { createOrder } from "@/service/order/orderService";
+import {
+  createMomoOrderPayment,
+  createOrder,
+} from "@/service/order/orderService";
 
 function getCartItemFallbackLabel(name) {
   return String(name || "SP")
@@ -28,7 +31,8 @@ function formatDisplayPrice(value) {
   }).format(Number(value || 0));
 }
 
-const ORDER_SUCCESS_STORAGE_KEY = "payment_bank_order_snapshot";
+const ORDER_SUCCESS_STORAGE_KEY = "payment_order_snapshot";
+const PAYMENT_MOMO_STORAGE_KEY = "payment_momo_snapshot";
 const PROVINCES_API_BASE_URL = "https://provinces.open-api.vn/api";
 const DEFAULT_CITY_CODE = "01";
 const DEFAULT_CITY_NAME = "Thành phố Hà Nội";
@@ -235,6 +239,31 @@ function PaymentPage() {
     }));
   };
 
+  const buildOrderPayload = () => ({
+    paymentMethod:
+      paymentMethod === "bank"
+        ? "BANK_TRANSFER"
+        : paymentMethod === "momo"
+          ? "MOMO"
+          : "COD",
+    items: items.map((item) => ({
+      productId: item.productId,
+      quantity: Number(item.quantity || 0),
+    })),
+    customer: {
+      fullName: formValues.fullName.trim(),
+      phone: formValues.phone.trim(),
+      email: formValues.email.trim(),
+    },
+    shippingAddress: {
+      city: formValues.city.trim(),
+      district: formValues.district.trim(),
+      ward: formValues.ward.trim(),
+      address: formValues.address.trim(),
+    },
+    note: formValues.note.trim(),
+  });
+
   const handleSubmitOrder = async () => {
     const requiredFields = [
       { key: "fullName", label: "họ và tên" },
@@ -268,28 +297,43 @@ function PaymentPage() {
       return;
     }
 
-    const payload = {
-      paymentMethod: paymentMethod === "bank" ? "BANK_TRANSFER" : "COD",
-      items: items.map((item) => ({
-        productId: item.productId,
-        quantity: Number(item.quantity || 0),
-      })),
-      customer: {
-        fullName: formValues.fullName.trim(),
-        phone: formValues.phone.trim(),
-        email: formValues.email.trim(),
-      },
-      shippingAddress: {
-        city: formValues.city.trim(),
-        district: formValues.district.trim(),
-        ward: formValues.ward.trim(),
-        address: formValues.address.trim(),
-      },
-      note: formValues.note.trim(),
-    };
+    const payload = buildOrderPayload();
 
     try {
       setIsSubmittingOrder(true);
+
+      if (paymentMethod === "momo") {
+        // Flow MoMo không được clear cart hay vào success ngay, phải chờ backend xác nhận paid.
+        const orderSnapshot = await createMomoOrderPayment(payload);
+        const momoPayUrl = String(orderSnapshot?.paymentSession?.payUrl || "").trim();
+
+        sessionStorage.setItem(
+          PAYMENT_MOMO_STORAGE_KEY,
+          JSON.stringify(orderSnapshot),
+        );
+
+        if (momoPayUrl) {
+          // Nếu backend đã lấy được payUrl thật từ MoMo thì chuyển thẳng user sang cổng thanh toán.
+          toast.success("Đang chuyển sang cổng thanh toán MoMo.", {
+            position: "top-right",
+          });
+          window.location.assign(momoPayUrl);
+          return;
+        }
+
+        // Fallback về màn pending nội bộ nếu provider chưa trả payUrl nhưng vẫn còn dữ liệu session để retry/check.
+        toast.success("Đã tạo phiên thanh toán MoMo.", {
+          position: "top-right",
+        });
+
+        navigate("/payment/momo", {
+          replace: true,
+          state: {
+            orderSnapshot,
+          },
+        });
+        return;
+      }
 
       // Checkout thật sẽ lấy order snapshot từ backend để success page hiển thị đúng dữ liệu đã lưu DB.
       const orderSnapshot = await createOrder(payload);
@@ -756,6 +800,27 @@ function PaymentPage() {
 
                     <button
                       type="button"
+                      onClick={() => setPaymentMethod("momo")}
+                      className="flex w-full items-center gap-4 text-left text-[18px] font-semibold text-white"
+                    >
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full border border-white/25">
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${paymentMethod === "momo" ? "bg-white" : "bg-transparent"}`}
+                        />
+                      </span>
+                      <span>Thanh toán MoMo QR</span>
+                    </button>
+
+                    {paymentMethod === "momo" ? (
+                      <div className="relative rounded-[10px] bg-black/12 px-5 py-6 text-[16px] leading-9 text-white/75">
+                        <div className="absolute top-[-12px] left-9 h-0 w-0 border-r-[18px] border-b-[18px] border-l-[18px] border-r-transparent border-b-white/25 border-l-transparent" />
+                        Sau khi tạo đơn hàng, hệ thống sẽ chuyển bạn sang màn hình mã QR MoMo thật.
+                        Giỏ hàng chỉ được xóa sau khi MoMo xác nhận thanh toán thành công.
+                      </div>
+                    ) : null}
+
+                    <button
+                      type="button"
                       onClick={() => setPaymentMethod("cod")}
                       className="flex w-full items-center gap-4 text-left text-[18px] font-semibold text-white"
                     >
@@ -837,7 +902,13 @@ function PaymentPage() {
                   disabled={isSubmittingOrder}
                   className="inline-flex min-h-[62px] w-full items-center justify-center rounded-full bg-black px-10 text-[18px] font-medium text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isSubmittingOrder ? "Đang đặt hàng..." : "Đặt hàng"}
+                  {isSubmittingOrder
+                    ? paymentMethod === "momo"
+                      ? "Đang tạo QR MoMo..."
+                      : "Đang đặt hàng..."
+                    : paymentMethod === "momo"
+                      ? "Tạo mã QR MoMo"
+                      : "Đặt hàng"}
                 </button>
               </aside>
             </section>

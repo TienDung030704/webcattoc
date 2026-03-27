@@ -59,20 +59,11 @@ function Register() {
 
       if (!result) return;
 
-      const accessToken = result.accessToken || result.access_token;
-      const refreshToken = result.refreshToken || result.refresh_token;
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user_data");
 
-      if (accessToken) {
-        localStorage.setItem("access_token", accessToken);
-      }
-
-      if (refreshToken) {
-        localStorage.setItem("refresh_token", refreshToken);
-      }
-
-      localStorage.setItem("user_data", JSON.stringify(result));
-
-      // Tài khoản mới phải có cart/favorites độc lập, không tái sử dụng state còn sót của account trước.
+      // Sau khi đăng ký xong chỉ quay về màn login, không giữ phiên đăng nhập để tránh auto-login ngoài ý muốn khi app hydrate lại.
       resetFavoritesState();
       syncCartStorageByCurrentUser();
       window.dispatchEvent(new CustomEvent("user-data-updated"));

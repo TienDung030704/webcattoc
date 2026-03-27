@@ -52,7 +52,10 @@ const readCurrentUserFromStorage = () => {
 
 export const useGetCurrentUser = () => {
   const currentUser = useSelector((state) => state.authLogin?.userInfo);
+  const hydratedUser = useSelector((state) => state.user?.userInfo);
   const [storedUser, setStoredUser] = useState(() => readCurrentUserFromStorage());
+  const hasAccessToken = Boolean(localStorage.getItem("access_token"));
+  const hasHydratedUser = hydratedUser && Object.keys(hydratedUser).length > 0;
 
   useEffect(() => {
     // Khi profile vừa được cập nhật thì đọc lại localStorage để UI đổi ngay không cần reload.
@@ -67,5 +70,9 @@ export const useGetCurrentUser = () => {
     };
   }, []);
 
-  return storedUser || currentUser;
+  if (!hasAccessToken) {
+    return null;
+  }
+
+  return (hasHydratedUser ? hydratedUser : null) || storedUser || currentUser;
 };

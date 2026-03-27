@@ -72,6 +72,7 @@ function mapOrderStatus(status) {
 
 function mapPaymentMethod(paymentMethod) {
   if (paymentMethod === "BANK_TRANSFER") return "Chuyển khoản";
+  if (paymentMethod === "MOMO") return "MoMo";
   if (paymentMethod === "COD") return "COD";
   return "Khác";
 }
@@ -79,6 +80,8 @@ function mapPaymentMethod(paymentMethod) {
 function mapPaymentStatus(paymentStatus) {
   if (paymentStatus === "PAID") return "Đã thanh toán";
   if (paymentStatus === "PENDING") return "Chờ thanh toán";
+  if (paymentStatus === "FAILED") return "Thanh toán lỗi";
+  if (paymentStatus === "EXPIRED") return "Hết hạn";
   return "Chưa rõ";
 }
 
@@ -424,7 +427,7 @@ function AdminOrderManagerPage() {
                     const isLoadingDetail = detailLoadingId === String(item.id);
                     const isPaid = item.paymentStatus === "PAID";
                     const canConfirmPayment =
-                      item.status === "COMPLETED" && !isPaid;
+                      item.status === "COMPLETED" && !isPaid && item.paymentMethod !== "MOMO";
 
                     return (
                       <tr
@@ -527,6 +530,10 @@ function AdminOrderManagerPage() {
                               <span className="inline-flex items-center gap-1 text-xs text-emerald-300">
                                 <CheckCircle2 className="h-3.5 w-3.5" />
                                 Đã thu tiền
+                              </span>
+                            ) : item.paymentMethod === "MOMO" ? (
+                              <span className="text-xs text-white/40">
+                                MoMo tự xác nhận
                               </span>
                             ) : null}
 

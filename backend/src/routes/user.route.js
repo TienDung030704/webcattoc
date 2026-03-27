@@ -31,6 +31,9 @@ router.post("/favorites/:productId", authRequired, userController.addFavorite);
 // API cho user đang đăng nhập bỏ 1 sản phẩm khỏi favorites của chính mình.
 router.delete("/favorites/:productId", authRequired, userController.removeFavorite);
 
+// API để user đang đăng nhập xem toàn bộ lịch sử đặt lịch của chính mình.
+router.get("/appointments", authRequired, userController.getAppointments);
+
 // API để user đang đăng nhập tự đặt lịch cho chính mình.
 router.post("/appointments", authRequired, userController.createAppointment);
 

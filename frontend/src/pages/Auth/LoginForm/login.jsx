@@ -2,15 +2,18 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
 
 import { loginSchema } from "@/utils/validate";
 import { useAutoLogin } from "@/features/Auth/hook";
+import { authUserService } from "@/service/auth/authUser/authUserService";
 import { useCartActions } from "@/features/cart/hook";
 import { useFavoriteActions } from "@/features/favorite/hook";
 import { toast } from "sonner";
 
 function Login() {
   const [showPassword, setShowPassword] = useState(false);
+  const dispatch = useDispatch();
   const loginApi = useAutoLogin();
   const { syncCartStorageByCurrentUser } = useCartActions();
   const { resetFavoritesState } = useFavoriteActions();
@@ -46,6 +49,12 @@ function Login() {
       }
 
       localStorage.setItem("user_data", JSON.stringify(result));
+
+      const currentUserResult = await dispatch(authUserService());
+      if (authUserService.fulfilled.match(currentUserResult) && currentUserResult.payload) {
+        // Sau login, luôn đồng bộ lại user_data bằng /auth/me để role/profile lấy từ backend mới nhất.
+        localStorage.setItem("user_data", JSON.stringify(currentUserResult.payload));
+      }
 
       // Reset favorites state cũ và nạp lại đúng cart theo tài khoản vừa đăng nhập.
       resetFavoritesState();

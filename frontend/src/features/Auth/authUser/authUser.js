@@ -28,7 +28,8 @@ export const authUserSlice = createSlice({
       })
       .addCase(authUserService.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message;
+        state.userInfo = {};
+        state.error = action.payload?.message || action.error?.message || null;
       });
   },
 });

@@ -1,10 +1,14 @@
 import { useEffect } from "react";
+import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
+
+import { authUserService } from "@/service/auth/authUser/authUserService";
 import { useCartActions } from "@/features/cart/hook";
 import { useFavoriteActions } from "@/features/favorite/hook";
 import { toast } from "sonner";
 
 function GoogleCallback() {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const { syncCartStorageByCurrentUser } = useCartActions();
   const { resetFavoritesState } = useFavoriteActions();
@@ -65,26 +69,37 @@ function GoogleCallback() {
       localStorage.setItem("refresh_token", refreshToken);
       localStorage.setItem("user_data", JSON.stringify(userData));
 
-      resetFavoritesState();
-      syncCartStorageByCurrentUser();
-      window.dispatchEvent(new CustomEvent("user-data-updated"));
+      const hydrateCurrentUser = async () => {
+        const currentUserResult = await dispatch(authUserService());
+        if (authUserService.fulfilled.match(currentUserResult) && currentUserResult.payload) {
+          // Sau Google login, ghi đè cache local bằng profile từ /auth/me để đồng bộ với login thường.
+          localStorage.setItem("user_data", JSON.stringify(currentUserResult.payload));
+        }
 
-      toast.success("Đăng nhập Google thành công!", {
-        duration: 3000,
-        position: "top-right",
-        style: {
-          background: "#16a34a",
-          color: "#ffffff",
-          border: "1px solid #15803d",
-        },
-      });
+        resetFavoritesState();
+        syncCartStorageByCurrentUser();
+        window.dispatchEvent(new CustomEvent("user-data-updated"));
 
-      navigate("/", { replace: true });
+        toast.success("Đăng nhập Google thành công!", {
+          duration: 3000,
+          position: "top-right",
+          style: {
+            background: "#16a34a",
+            color: "#ffffff",
+            border: "1px solid #15803d",
+          },
+        });
+
+        navigate("/", { replace: true });
+      };
+
+      hydrateCurrentUser();
+      return;
     } catch {
       toast.error("Đăng nhập Google thất bại", { position: "top-right" });
       navigate("/auth/login", { replace: true });
     }
-  }, [navigate, syncCartStorageByCurrentUser, resetFavoritesState]);
+  }, [dispatch, navigate, syncCartStorageByCurrentUser, resetFavoritesState]);
 
   return (
     <div className="flex h-screen items-center justify-center bg-black">

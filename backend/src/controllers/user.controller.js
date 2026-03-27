@@ -97,6 +97,17 @@ const getUserErrorStatus = (message) => {
 };
 
 
+const getAppointments = async (req, res) => {
+  try {
+    // User chỉ được xem lịch sử đặt lịch của chính mình qua userId lấy từ auth middleware.
+    const data = await userService.getAppointments(req.auth.user.id, req.query);
+    res.success(data);
+  } catch (error) {
+    const message = error?.message || "Không thể tải lịch sử đặt lịch";
+    res.error(message, getUserErrorStatus(message));
+  }
+};
+
 const createAppointment = async (req, res) => {
   try {
     // User chỉ được tạo lịch hẹn cho chính mình thông qua userId lấy từ token.
@@ -161,6 +172,7 @@ module.exports = {
   getFavoriteStatus,
   addFavorite,
   removeFavorite,
+  getAppointments,
   createAppointment,
   createOrder,
   updateProfile,

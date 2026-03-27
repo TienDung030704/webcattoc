@@ -26,6 +26,7 @@ export function mapAppointmentStatus(status) {
 
 export function mapPaymentMethod(paymentMethod) {
   if (paymentMethod === "BANK_TRANSFER") return "Chuyển khoản";
+  if (paymentMethod === "MOMO") return "MoMo";
   if (paymentMethod === "COD") return "Tiền mặt";
   return "Khác";
 }
@@ -33,5 +34,7 @@ export function mapPaymentMethod(paymentMethod) {
 export function mapPaymentStatus(paymentStatus) {
   if (paymentStatus === "PAID") return "Đã thanh toán";
   if (paymentStatus === "PENDING") return "Chờ thanh toán";
+  if (paymentStatus === "FAILED") return "Thanh toán lỗi";
+  if (paymentStatus === "EXPIRED") return "Hết hạn";
   return "Chưa rõ";
 }

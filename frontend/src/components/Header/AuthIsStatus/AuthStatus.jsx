@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Bell,
+  CalendarRange,
   ChevronDown,
   Heart,
   LogOut,
@@ -253,6 +254,13 @@ function HeaderAuthArea() {
           >
             <User className="h-4 w-4 text-[#e8cf9d]" />
             <span>Thông tin tài khoản</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => navigate("/booking-history")}
+            className="cursor-pointer rounded-md px-3 py-2 text-sm focus:bg-white/10 focus:text-white"
+          >
+            <CalendarRange className="h-4 w-4 text-[#e8cf9d]" />
+            <span>Lịch sử đặt lịch</span>
           </DropdownMenuItem>
           {isAdmin ? (
             <DropdownMenuItem

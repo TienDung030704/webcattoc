@@ -5,6 +5,7 @@ const BANK_ACCOUNT_NAME = "NGUYEN TIEN DUNG";
 const BANK_ACCOUNT_NUMBER = "9869271243";
 const BANK_NAME = "VIETCOMBANK";
 const BANK_QR_IMAGE = "/bank.png";
+const ORDER_PAYMENT_METHODS = ["BANK_TRANSFER", "COD", "MOMO"];
 
 class OrderService {
   normalizeText(value, fieldLabel, { required = false, maxLength } = {}) {
@@ -48,6 +49,7 @@ class OrderService {
 
     return normalizedEmail;
   }
+
   normalizeProductId(productId) {
     if (productId == null || String(productId).trim() === "") {
       throw new Error("Mã sản phẩm không hợp lệ");
@@ -70,12 +72,12 @@ class OrderService {
     return normalizedQuantity;
   }
 
-  normalizePaymentMethod(value) {
+  normalizePaymentMethod(value, { allowedMethods = ORDER_PAYMENT_METHODS } = {}) {
     const normalizedValue = String(value || "")
       .trim()
       .toUpperCase();
 
-    if (!["BANK_TRANSFER", "COD"].includes(normalizedValue)) {
+    if (!allowedMethods.includes(normalizedValue)) {
       throw new Error("Phương thức thanh toán không hợp lệ");
     }
 
@@ -147,11 +149,13 @@ class OrderService {
     };
   }
 
-  buildCreateOrderPayload(payload = {}) {
+  buildCreateOrderPayload(payload = {}, options = {}) {
     const source = payload && typeof payload === "object" ? payload : {};
 
     return {
-      paymentMethod: this.normalizePaymentMethod(source.paymentMethod),
+      paymentMethod: this.normalizePaymentMethod(source.paymentMethod, {
+        allowedMethods: options.allowedPaymentMethods,
+      }),
       items: this.normalizeItems(source.items),
       customer: this.normalizeCustomer(source.customer),
       shippingAddress: this.normalizeShippingAddress(source.shippingAddress),
@@ -165,10 +169,28 @@ class OrderService {
     return `MDT${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`;
   }
 
+  buildPaymentReference(paymentMethod, orderCode, customerPhone) {
+    if (paymentMethod === "BANK_TRANSFER") {
+      return `${orderCode} + ${customerPhone}`;
+    }
+
+    if (paymentMethod === "MOMO") {
+      return orderCode;
+    }
+
+    return null;
+  }
+
   getPaymentMethodLabel(paymentMethod) {
-    return paymentMethod === "BANK_TRANSFER"
-      ? "Chuyển khoản ngân hàng"
-      : "Thanh toán khi nhận hàng";
+    if (paymentMethod === "BANK_TRANSFER") {
+      return "Chuyển khoản ngân hàng";
+    }
+
+    if (paymentMethod === "MOMO") {
+      return "Thanh toán MoMo";
+    }
+
+    return "Thanh toán khi nhận hàng";
   }
 
   buildBankInfo(order) {
@@ -185,7 +207,53 @@ class OrderService {
     };
   }
 
+  mapPaymentSession(transaction) {
+    if (!transaction) {
+      return null;
+    }
+
+    return {
+      id: transaction.id.toString(),
+      provider: transaction.provider,
+      requestId: transaction.requestId,
+      providerOrderId: transaction.providerOrderId,
+      transId: transaction.transId,
+      status: transaction.status,
+      resultCode: transaction.resultCode,
+      message: transaction.message,
+      payUrl: transaction.payUrl,
+      deeplink: transaction.deeplink,
+      qrCodeUrl: transaction.qrCodeUrl,
+      expiresAt: transaction.expiresAt,
+      confirmedAt: transaction.confirmedAt,
+      createdAt: transaction.createdAt,
+      updatedAt: transaction.updatedAt,
+    };
+  }
+
+  getOrderInclude({ paymentTransactions = false } = {}) {
+    return {
+      items: {
+        orderBy: {
+          id: "asc",
+        },
+      },
+      ...(paymentTransactions
+        ? {
+            paymentTransactions: {
+              orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+              take: 1,
+            },
+          }
+        : {}),
+    };
+  }
+
   mapOrder(order) {
+    const latestPaymentTransaction = Array.isArray(order.paymentTransactions)
+      ? order.paymentTransactions[0] || null
+      : null;
+
     return {
       id: order.id.toString(),
       orderCode: order.orderCode,
@@ -195,6 +263,7 @@ class OrderService {
       paymentMethod: order.paymentMethod,
       paymentMethodLabel: this.getPaymentMethodLabel(order.paymentMethod),
       paymentConfirmedAt: order.paymentConfirmedAt,
+      paymentExpiresAt: order.paymentExpiresAt,
       paymentReference: order.paymentReference,
       subtotal: Number(order.subtotal || 0),
       shippingFee: Number(order.shippingFee || 0),
@@ -220,87 +289,155 @@ class OrderService {
       },
       note: order.note,
       bankInfo: this.buildBankInfo(order),
+      paymentSession: this.mapPaymentSession(latestPaymentTransaction),
     };
   }
 
-  async createOrder(userId, payload = {}) {
-    const normalizedPayload = this.buildCreateOrderPayload(payload);
-    const touchedProductIds = normalizedPayload.items.map(
-      (item) => item.productId,
-    );
-    let updatedOrder = null;
+  async getOrderByIdOrThrow(orderId, options = {}) {
+    const executor = options.executor || prisma;
+    const order = await executor.order.findUnique({
+      where: {
+        id: orderId,
+      },
+      include: this.getOrderInclude({
+        paymentTransactions: options.paymentTransactions,
+      }),
+    });
 
-    // Dùng transaction để việc trừ tồn kho và tạo order luôn thành công hoặc rollback cùng nhau.
-    updatedOrder = await prisma.$transaction(async (transaction) => {
-      const products = await transaction.product.findMany({
+    if (!order) {
+      throw new Error("Không tìm thấy đơn hàng");
+    }
+
+    return order;
+  }
+
+  async getOrderItemsData(transaction, normalizedPayload) {
+    const touchedProductIds = normalizedPayload.items.map((item) => item.productId);
+    const products = await transaction.product.findMany({
+      where: {
+        id: {
+          in: touchedProductIds,
+        },
+      },
+    });
+
+    if (products.length !== touchedProductIds.length) {
+      throw new Error("Không tìm thấy sản phẩm");
+    }
+
+    const productsMap = new Map(
+      products.map((product) => [product.id.toString(), product]),
+    );
+
+    return normalizedPayload.items.map((item) => {
+      const product = productsMap.get(item.productId.toString());
+
+      if (!product) {
+        throw new Error("Không tìm thấy sản phẩm");
+      }
+
+      if (!product.isActive) {
+        throw new Error("Sản phẩm hiện không khả dụng");
+      }
+
+      if (product.stock < item.quantity) {
+        throw new Error(`Sản phẩm ${product.name} không đủ tồn kho`);
+      }
+
+      const unitPrice = Number(product.price || 0);
+      return {
+        productId: product.id,
+        productName: product.name,
+        productImageUrl: product.imageUrl,
+        unitPrice,
+        quantity: item.quantity,
+        lineTotal: unitPrice * item.quantity,
+      };
+    });
+  }
+
+  getSortedItemsByProductId(items = []) {
+    return [...items].sort((firstItem, secondItem) =>
+      firstItem.productId.toString().localeCompare(secondItem.productId.toString()),
+    );
+  }
+
+  async reserveStockForItems(transaction, items = []) {
+    const sortedOrderItems = this.getSortedItemsByProductId(items);
+
+    for (const item of sortedOrderItems) {
+      const updateResult = await transaction.product.updateMany({
         where: {
-          id: {
-            in: touchedProductIds,
+          id: item.productId,
+          isActive: true,
+          stock: {
+            gte: item.quantity,
+          },
+        },
+        data: {
+          stock: {
+            decrement: item.quantity,
           },
         },
       });
 
-      if (products.length !== touchedProductIds.length) {
-        throw new Error("Không tìm thấy sản phẩm");
+      if (updateResult.count === 0) {
+        throw new Error(`Sản phẩm ${item.productName} không đủ tồn kho`);
       }
+    }
+  }
 
-      const productsMap = new Map(
-        products.map((product) => [product.id.toString(), product]),
-      );
+  async restoreStockForItems(transaction, items = []) {
+    const sortedOrderItems = this.getSortedItemsByProductId(items);
 
-      const normalizedOrderItems = normalizedPayload.items.map((item) => {
-        const product = productsMap.get(item.productId.toString());
-
-        if (!product) {
-          throw new Error("Không tìm thấy sản phẩm");
-        }
-
-        if (!product.isActive) {
-          throw new Error("Sản phẩm hiện không khả dụng");
-        }
-
-        if (product.stock < item.quantity) {
-          throw new Error(`Sản phẩm ${product.name} không đủ tồn kho`);
-        }
-
-        const unitPrice = Number(product.price || 0);
-        return {
-          productId: product.id,
-          productName: product.name,
-          productImageUrl: product.imageUrl,
-          unitPrice,
-          quantity: item.quantity,
-          lineTotal: unitPrice * item.quantity,
-        };
+    for (const item of sortedOrderItems) {
+      await transaction.product.update({
+        where: {
+          id: item.productId,
+        },
+        data: {
+          stock: {
+            increment: item.quantity,
+          },
+        },
       });
+    }
+  }
 
-      const sortedOrderItems = [...normalizedOrderItems].sort(
-        (firstItem, secondItem) =>
-          firstItem.productId
-            .toString()
-            .localeCompare(secondItem.productId.toString()),
+  async notifyProductsAtZero(productIds = []) {
+    if (!productIds.length) {
+      return;
+    }
+
+    // Sau khi transaction commit xong mới kiểm tra sản phẩm nào vừa về 0 để phát notification an toàn.
+    const productsAtZero = await prisma.product.findMany({
+      where: {
+        id: {
+          in: productIds,
+        },
+        stock: 0,
+      },
+    });
+
+    await Promise.all(
+      productsAtZero.map((product) =>
+        notificationService.createProductOutOfStockNotification(product),
+      ),
+    );
+  }
+
+  async createOrder(userId, payload = {}, options = {}) {
+    const normalizedPayload = this.buildCreateOrderPayload(payload, options);
+    const touchedProductIds = normalizedPayload.items.map((item) => item.productId);
+
+    // Dùng transaction để việc trừ tồn kho và tạo order luôn thành công hoặc rollback cùng nhau.
+    const createdOrder = await prisma.$transaction(async (transaction) => {
+      const normalizedOrderItems = await this.getOrderItemsData(
+        transaction,
+        normalizedPayload,
       );
 
-      for (const item of sortedOrderItems) {
-        const updateResult = await transaction.product.updateMany({
-          where: {
-            id: item.productId,
-            isActive: true,
-            stock: {
-              gte: item.quantity,
-            },
-          },
-          data: {
-            stock: {
-              decrement: item.quantity,
-            },
-          },
-        });
-
-        if (updateResult.count === 0) {
-          throw new Error(`Sản phẩm ${item.productName} không đủ tồn kho`);
-        }
-      }
+      await this.reserveStockForItems(transaction, normalizedOrderItems);
 
       const subtotal = normalizedOrderItems.reduce(
         (currentTotal, item) => currentTotal + item.lineTotal,
@@ -309,10 +446,11 @@ class OrderService {
       const shippingFee = 0;
       const total = subtotal + shippingFee;
       const orderCode = this.buildOrderCode();
-      const paymentReference =
-        normalizedPayload.paymentMethod === "BANK_TRANSFER"
-          ? `${orderCode} + ${normalizedPayload.customer.phone}`
-          : null;
+      const paymentReference = this.buildPaymentReference(
+        normalizedPayload.paymentMethod,
+        orderCode,
+        normalizedPayload.customer.phone,
+      );
 
       return await transaction.order.create({
         data: {
@@ -322,6 +460,7 @@ class OrderService {
           paymentStatus: "PENDING",
           status: "PENDING_CONFIRMATION",
           paymentReference,
+          paymentExpiresAt: options.paymentExpiresAt || null,
           subtotal,
           shippingFee,
           total,
@@ -344,29 +483,111 @@ class OrderService {
             })),
           },
         },
-        include: {
-          items: true,
-        },
+        include: this.getOrderInclude({
+          paymentTransactions: true,
+        }),
       });
     });
 
-    // Sau khi transaction commit xong mới kiểm tra sản phẩm nào vừa về 0 để phát notification an toàn.
-    const productsAtZero = await prisma.product.findMany({
-      where: {
-        id: {
-          in: touchedProductIds,
+    await this.notifyProductsAtZero(touchedProductIds);
+
+    return this.mapOrder(createdOrder);
+  }
+
+  async cancelPendingOrder(orderId, options = {}) {
+    const executor = options.executor || prisma;
+    const paymentStatus = options.paymentStatus || "FAILED";
+
+    const runCancelOrder = async (transaction) => {
+      const currentOrder = await this.getOrderByIdOrThrow(orderId, {
+        executor: transaction,
+        paymentTransactions: true,
+      });
+
+      if (currentOrder.paymentStatus === "PAID") {
+        throw new Error("Không thể hủy đơn hàng đã thanh toán");
+      }
+
+      if (currentOrder.status === "CANCELED") {
+        return currentOrder;
+      }
+
+      // Hoàn lại tồn kho trong cùng transaction để đơn bị hủy không giữ stock treo.
+      await this.restoreStockForItems(transaction, currentOrder.items);
+
+      return await transaction.order.update({
+        where: {
+          id: orderId,
         },
-        stock: 0,
-      },
+        data: {
+          status: "CANCELED",
+          paymentStatus,
+          paymentConfirmedAt: null,
+          paymentExpiresAt: null,
+        },
+        include: this.getOrderInclude({
+          paymentTransactions: true,
+        }),
+      });
+    };
+
+    if (executor === prisma) {
+      return await prisma.$transaction(runCancelOrder);
+    }
+
+    return await runCancelOrder(executor);
+  }
+
+  async expirePendingOrder(orderId, options = {}) {
+    return await this.cancelPendingOrder(orderId, {
+      ...options,
+      paymentStatus: "EXPIRED",
     });
+  }
 
-    await Promise.all(
-      productsAtZero.map((product) =>
-        notificationService.createProductOutOfStockNotification(product),
-      ),
-    );
+  async markOrderPaid(orderId, options = {}) {
+    const executor = options.executor || prisma;
+    const paymentConfirmedAt = options.paymentConfirmedAt || new Date();
 
-    return this.mapOrder(updatedOrder);
+    const runMarkPaid = async (transaction) => {
+      const currentOrder = await this.getOrderByIdOrThrow(orderId, {
+        executor: transaction,
+        paymentTransactions: true,
+      });
+
+      if (currentOrder.status === "CANCELED") {
+        throw new Error("Không thể xác nhận thanh toán cho đơn đã hủy");
+      }
+
+      if (currentOrder.paymentStatus === "PAID") {
+        return currentOrder;
+      }
+
+      const paymentMethod = options.paymentMethod
+        ? this.normalizePaymentMethod(options.paymentMethod)
+        : currentOrder.paymentMethod;
+
+      return await transaction.order.update({
+        where: {
+          id: orderId,
+        },
+        data: {
+          paymentMethod,
+          paymentStatus: "PAID",
+          paymentConfirmedAt,
+          paymentExpiresAt: null,
+        },
+        include: this.getOrderInclude({
+          paymentTransactions: true,
+        }),
+      });
+    };
+
+    if (executor === prisma) {
+      return await prisma.$transaction(runMarkPaid);
+    }
+
+    return await runMarkPaid(executor);
   }
 }
 

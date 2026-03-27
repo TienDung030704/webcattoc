@@ -1,4 +1,5 @@
 const prisma = require("@/libs/prisma");
+const orderService = require("@/services/order.service");
 
 const ORDER_STATUSES = [
   "PENDING_CONFIRMATION",
@@ -13,7 +14,7 @@ const ORDER_STATUS_TRANSITIONS = {
   COMPLETED: [],
   CANCELED: [],
 };
-const ORDER_PAYMENT_METHODS = ["BANK_TRANSFER", "COD"];
+const ORDER_PAYMENT_METHODS = ["BANK_TRANSFER", "COD", "MOMO"];
 
 class AdminOrderService {
   mapOrderListItem(order) {
@@ -28,6 +29,7 @@ class AdminOrderService {
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
       paymentConfirmedAt: order.paymentConfirmedAt,
+      paymentExpiresAt: order.paymentExpiresAt,
       total: Number(order.total || 0),
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
@@ -44,6 +46,7 @@ class AdminOrderService {
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
       paymentConfirmedAt: order.paymentConfirmedAt,
+      paymentExpiresAt: order.paymentExpiresAt,
       paymentReference: order.paymentReference,
       subtotal: Number(order.subtotal || 0),
       shippingFee: Number(order.shippingFee || 0),
@@ -263,22 +266,8 @@ class AdminOrderService {
       }
 
       if (normalizedStatus === "CANCELED") {
-        const sortedItems = [...currentOrder.items].sort((firstItem, secondItem) =>
-          firstItem.productId.toString().localeCompare(secondItem.productId.toString()),
-        );
-
-        for (const item of sortedItems) {
-          await tx.product.update({
-            where: {
-              id: item.productId,
-            },
-            data: {
-              stock: {
-                increment: item.quantity,
-              },
-            },
-          });
-        }
+        // Reuse helper hoàn tồn kho để admin hủy đơn thường và đơn MoMo cùng một nghiệp vụ.
+        await orderService.restoreStockForItems(tx, currentOrder.items);
       }
 
       return await tx.order.update({
@@ -332,26 +321,17 @@ class AdminOrderService {
       throw new Error("Đơn hàng này đã được thanh toán trước đó");
     }
 
+    if (order.paymentMethod === "MOMO") {
+      throw new Error("Đơn hàng MoMo phải được xác nhận qua callback/IPN tự động");
+    }
+
     const paymentMethod = this.normalizePaymentMethod(
       payload.paymentMethod || order.paymentMethod,
     );
 
-    const updatedOrder = await prisma.order.update({
-      where: {
-        id: orderId,
-      },
-      data: {
-        paymentMethod,
-        paymentStatus: "PAID",
-        paymentConfirmedAt: new Date(),
-      },
-      include: {
-        items: {
-          orderBy: {
-            id: "asc",
-          },
-        },
-      },
+    const updatedOrder = await orderService.markOrderPaid(orderId, {
+      paymentMethod,
+      paymentConfirmedAt: new Date(),
     });
 
     return this.mapOrderDetail(updatedOrder);

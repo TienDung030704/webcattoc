@@ -17,12 +17,15 @@ import ProductDetailPage from "@/pages/ProductPage/ProductDetail";
 import FavoritePage from "@/pages/FavoritePage";
 import ShoppingCartPage from "@/pages/ShoppingCart";
 import PaymentPage from "@/pages/PaymentPage";
+import PaymentMomoPage from "@/pages/PaymentMomo";
+import PaymentMomoReturnPage from "@/pages/PaymentMomoReturn";
 import PaymentSuccessPage from "@/pages/PaymentSuccessPage";
 import NewsPage from "@/pages/NewsPage";
 import NewsPageDetails from "@/pages/NewsPage/NewsPageDetails";
 import StoresPage from "@/pages/StoresPage";
 import ContactPage from "@/pages/ContactPage";
 import BookingHairPage from "@/pages/BookingHair";
+import BookingHistoryPage from "@/pages/BookingHistory";
 import InformationIndividualPage from "@/pages/Information-Individual";
 import AdminPage from "@/pages/Admin";
 import AdminDashboardPage from "@/pages/Admin/AdminDashboard";
@@ -45,6 +48,8 @@ function AppRoutes() {
         <Route path="/favorite" element={<FavoritePage />} />
         <Route path="/cart" element={<ShoppingCartPage />} />
         <Route path="/payment" element={<PaymentPage />} />
+        <Route path="/payment/momo" element={<PaymentMomoPage />} />
+        <Route path="/payment/momo/return" element={<PaymentMomoReturnPage />} />
         <Route path="/payment/success" element={<PaymentSuccessPage />} />
         <Route path="/news" element={<NewsPage />} />
         <Route path="/news/:slug" element={<NewsPageDetails />} />
@@ -55,6 +60,7 @@ function AppRoutes() {
           path="/information-individual"
           element={<InformationIndividualPage />}
         />
+        <Route path="/booking-history" element={<BookingHistoryPage />} />
         <Route path="/admin" element={<AdminPage />}>
           <Route index element={<AdminDashboardPage />} />
           <Route path="appointments" element={<AppointmentManagerPage />} />
