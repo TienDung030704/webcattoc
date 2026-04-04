@@ -43,10 +43,7 @@ const login = async (req, res) => {
 const refreshToken = async (req, res) => {
   const userAgent = req.headers["user-agent"];
   const token = req.body.refreshToken ?? req.body.refresh_token;
-  const [error, data] = await authService.handleRefreshToken(
-    token,
-    userAgent,
-  );
+  const [error, data] = await authService.handleRefreshToken(token, userAgent);
 
   if (error) return res.unauthorized();
 
