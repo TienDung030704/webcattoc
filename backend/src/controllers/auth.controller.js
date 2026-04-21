@@ -2,17 +2,31 @@ const passport = require("passport");
 const { Strategy: GoogleStrategy } = require("passport-google-oauth20");
 const authService = require("@/services/auth.service");
 
-// Khởi tạo Google Strategy một lần khi module được load
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: `${process.env.BACKEND_URL || "http://localhost:3000"}/api/auth/google/callback`,
-    },
-    (accessToken, refreshToken, profile, done) => done(null, profile),
-  ),
-);
+// Khởi tạo Google Strategy nếu có cấu hình (tránh crash khi thiếu biến môi trường)
+try {
+  const googleClientId = process.env.GOOGLE_CLIENT_ID;
+  const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (googleClientId && googleClientSecret) {
+    passport.use(
+      new GoogleStrategy(
+        {
+          clientID: googleClientId,
+          clientSecret: googleClientSecret,
+          callbackURL: `${process.env.BACKEND_URL || "http://localhost:3000"}/api/auth/google/callback`,
+        },
+        (accessToken, refreshToken, profile, done) => done(null, profile),
+      ),
+    );
+  } else {
+    // Nếu không có cấu hình OAuth, ghi log và bỏ qua
+    console.warn(
+      "Google OAuth not configured: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing. Skipping GoogleStrategy registration.",
+    );
+  }
+} catch (err) {
+  // Bất kỳ lỗi nào cũng không nên crash server khi import module
+  console.error("Failed to initialize GoogleStrategy:", err);
+}
 
 const register = async (req, res) => {
   const { username, email, password } = req.body;
